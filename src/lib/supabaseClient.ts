@@ -1,34 +1,33 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Egyetlen Supabase kliens a teljes app számára.
+ * Lazy Supabase kliens — a createClient() CSAK az első tényleges API híváskor
+ * fut le (böngészőben / runtime), soha nem a Vercel build lépés alatt.
+ * Ez garantálja, hogy hiányzó / felcserélt env változók nem okoznak build hibát.
  *
- * A placeholder fallback értékek azért szükségesek, hogy a Vercel build lépés
- * során — amikor a NEXT_PUBLIC_ változók még nem érhetők el — a createClient()
- * ne dobjon URL-validációs hibát. Valódi API hívások csak böngészőben futnak,
- * ahol a változók már rendelkezésre állnak.
- *
- * Vercel-en állítsd be:
- *   Settings → Environment Variables →
- *   NEXT_PUBLIC_SUPABASE_URL és NEXT_PUBLIC_SUPABASE_ANON_KEY
+ * Vercel → Settings → Environment Variables:
+ *   NEXT_PUBLIC_SUPABASE_URL   = https://xxxx.supabase.co
+ *   NEXT_PUBLIC_SUPABASE_ANON_KEY = sb_publishable_...  (vagy eyJ...)
  */
-// Ha a változók hiányoznak, fel vannak cserélve, vagy érvénytelen értéket
-// tartalmaznak (build lépés), placeholder értékekkel dolgozunk.
-// A createClient ekkor is példányosul, de éles API hívások csak böngészőben
-// futnak, ahol a valódi változók már rendelkezésre állnak.
-const _rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const _rawKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+let _client: SupabaseClient | null = null;
 
-const _supabaseUrl = _rawUrl.startsWith("https://")
-  ? _rawUrl
-  : "https://placeholder.supabase.co";
+function getClient(): SupabaseClient {
+  if (!_client) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+    _client = createClient(
+      url.startsWith("https://") ? url : "https://placeholder.supabase.co",
+      key && !key.startsWith("https://") ? key : "placeholder-anon-key",
+    );
+  }
+  return _client;
+}
 
-const _supabaseKey =
-  _rawKey && !_rawKey.startsWith("https://")
-    ? _rawKey
-    : "placeholder-anon-key";
-
-export const supabase = createClient(_supabaseUrl, _supabaseKey);
+export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
+  get(_target, prop, receiver) {
+    return Reflect.get(getClient(), prop, receiver);
+  },
+});
 
 /**
  * TypeScript típusok a Supabase adatbázis tábláihoz.

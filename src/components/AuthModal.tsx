@@ -19,6 +19,23 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<"google" | "apple" | null>(null);
+
+  const handleOAuth = async (provider: "google" | "apple") => {
+    setOauthLoading(provider);
+    setError(null);
+    const { error: oauthErr } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
+      },
+    });
+    if (oauthErr) {
+      setError(translateAuthError(oauthErr.message));
+      setOauthLoading(null);
+    }
+    // Sikeres esetben a Supabase átirányít, ezért nem kell onClose()
+  };
 
   if (!open) return null;
 
@@ -121,8 +138,46 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
           ))}
         </div>
 
-        {/* Tartalom */}
-        <form onSubmit={handleSubmit} className="space-y-4 px-6 py-6">
+        {/* OAuth gombok */}
+        <div className="space-y-3 px-6 pt-6">
+          <button
+            type="button"
+            disabled={oauthLoading !== null}
+            onClick={() => handleOAuth("google")}
+            className="relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#111111] py-2.5 text-sm font-semibold text-white transition hover:border-[#3a3a3a] hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {oauthLoading === "google" ? (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+            ) : (
+              <GoogleIcon />
+            )}
+            Folytatás Google-fiókkal
+          </button>
+
+          <button
+            type="button"
+            disabled={oauthLoading !== null}
+            onClick={() => handleOAuth("apple")}
+            className="relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#111111] py-2.5 text-sm font-semibold text-white transition hover:border-[#3a3a3a] hover:bg-[#1a1a1a] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {oauthLoading === "apple" ? (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+            ) : (
+              <AppleIcon />
+            )}
+            Folytatás Apple-fiókkal
+          </button>
+
+          {/* Elválasztó */}
+          <div className="flex items-center gap-3 py-1">
+            <div className="h-px flex-1 bg-[#1a1a1a]" />
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-[#444444]">vagy</span>
+            <div className="h-px flex-1 bg-[#1a1a1a]" />
+          </div>
+        </div>
+
+        {/* E-mail / jelszó form */}
+        <form onSubmit={handleSubmit} className="space-y-4 px-6 pb-6">
           {/* E-mail */}
           <div>
             <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-[#888888]">
@@ -254,5 +309,37 @@ function translateAuthError(msg: string): string {
   if (msg.includes("Password should be at least")) return "A jelszónak legalább 6 karakter hosszúnak kell lennie.";
   if (msg.includes("Unable to validate email")) return "Érvénytelen e-mail-cím.";
   if (msg.includes("rate limit")) return "Túl sok próbálkozás. Kérjük, várj egy kicsit.";
+  if (msg.includes("provider is not enabled")) return "Ez a bejelentkezési mód nincs engedélyezve. Kérjük, használj e-mail-t.";
   return msg;
+}
+
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+      <path
+        d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z"
+        fill="#4285F4"
+      />
+      <path
+        d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z"
+        fill="#34A853"
+      />
+      <path
+        d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332Z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.163 6.656 3.58 9 3.58Z"
+        fill="#EA4335"
+      />
+    </svg>
+  );
+}
+
+function AppleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 814 1000" aria-hidden="true" fill="currentColor">
+      <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-37.5-155.5-98.8-91.2-156.4-91.2-225.6c0-129.7 84.7-196.8 167.2-196.8 44.2 0 81.1 29.3 108.8 29.3 26.4 0 68.1-31.5 122.2-31.5 19.8 0 108.2 1.9 165.3 90.8zm-130.5-94.8c27.7-35.5 47.5-84.7 47.5-133.9 0-6.4-.6-12.8-1.9-17.9-44.8 1.9-98.2 30.2-130.5 71.9-24.3 30.8-47.5 79.4-47.5 130.2 0 7 1.3 13.5 1.9 15.4 3.2.6 8.4 1.3 13.5 1.3 40.2 0 89.4-26.4 117-67z" />
+    </svg>
+  );
 }

@@ -44,8 +44,6 @@ function dbToMapBillboard(db: DbBillboard): MapBillboard {
 const TILE =
   "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
 
-export type { MapBillboard };
-
 const CENTER: [number, number] = [47.2, 19.35];
 const DEFAULT_ZOOM = 7;
 

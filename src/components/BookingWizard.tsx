@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Check, CreditCard, Trash2, Upload, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, CreditCard, Trash2, Upload, X } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { billboards, CITIES } from "@/lib/billboards";
 import { supabase } from "@/lib/supabaseClient";
@@ -407,25 +407,14 @@ export function BookingWizard({
               {step === 1 && (
                 <WizardPanel
                   title="Időzítés"
-                  subtitle="Add meg a futási sávot és a kampány megnevezését."
+                  subtitle="Kattints a naptárban a kezdő majd a záró napra."
                 >
-                  <div className="mb-4 grid gap-4 sm:grid-cols-2">
-                    <Field label="Kezdő dátum">
-                      <input
-                        type="date"
-                        value={start}
-                        onChange={(e) => setStart(e.target.value)}
-                        className={inputBase}
-                      />
-                    </Field>
-                    <Field label="Záró dátum">
-                      <input
-                        type="date"
-                        value={end}
-                        onChange={(e) => setEnd(e.target.value)}
-                        className={inputBase}
-                      />
-                    </Field>
+                  <div className="mb-4">
+                    <InlineDateRangePicker
+                      start={start}
+                      end={end}
+                      onChange={(s, e) => { setStart(s); setEnd(e); }}
+                    />
                   </div>
                   <div className="mb-4">
                     <Field label="Időzítés / napszak célzás">
@@ -691,6 +680,183 @@ function Row({ k, v }: { k: string; v: string }) {
     <div className="flex justify-between gap-4 text-sm">
       <span className="text-[#888888]">{k}</span>
       <span className="max-w-[60%] text-right font-medium text-white">{v}</span>
+    </div>
+  );
+}
+
+// ─── Inline naptár dátumtartomány-választó ───────────────────────────────────
+
+const HU_DAYS = ["H", "K", "Sze", "Cs", "P", "Szo", "V"];
+const HU_MONTHS = [
+  "Január", "Február", "Március", "Április", "Május", "Június",
+  "Július", "Augusztus", "Szeptember", "Október", "November", "December",
+];
+
+function fmtYMD(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function InlineDateRangePicker({
+  start,
+  end,
+  onChange,
+}: {
+  start: string;
+  end: string;
+  onChange: (s: string, e: string) => void;
+}) {
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  const [vy, setVy] = useState(today.getFullYear());
+  const [vm, setVm] = useState(today.getMonth());
+
+  const daysInMonth = new Date(vy, vm + 1, 0).getDate();
+  const offset = (new Date(vy, vm, 1).getDay() + 6) % 7;
+
+  const cells: (number | null)[] = [
+    ...Array<null>(offset).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const handleDay = (day: number) => {
+    const d = new Date(vy, vm, day);
+    if (d < today) return;
+    const s = fmtYMD(d);
+    if (!start || (start && end)) {
+      onChange(s, "");
+    } else if (s <= start) {
+      onChange(s, "");
+    } else {
+      onChange(start, s);
+    }
+  };
+
+  const canGoPrev =
+    vy > today.getFullYear() ||
+    (vy === today.getFullYear() && vm > today.getMonth());
+
+  const prevMonth = () => {
+    if (!canGoPrev) return;
+    if (vm === 0) { setVm(11); setVy((y) => y - 1); }
+    else setVm((m) => m - 1);
+  };
+  const nextMonth = () => {
+    if (vm === 11) { setVm(0); setVy((y) => y + 1); }
+    else setVm((m) => m + 1);
+  };
+
+  const todayStr = fmtYMD(today);
+  const totalDays = start && end ? daysBetween(start, end) : 0;
+
+  const fmtDisplay = (iso: string) =>
+    iso ? new Date(iso + "T00:00:00").toLocaleDateString("hu-HU", { month: "short", day: "numeric" }) : "—";
+
+  return (
+    <div className="rounded-2xl border border-[#1a1a1a] bg-[#000000] p-4">
+      {/* Kiválasztott tartomány összefoglaló */}
+      <div className="mb-4 flex items-center justify-between rounded-xl border border-[#1a1a1a] bg-[#0c0f0b] px-4 py-3">
+        <div className="text-center">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-[#555555]">Kezdés</p>
+          <p className={`mt-0.5 font-[family-name:var(--font-barlow-condensed)] text-base font-black ${start ? "text-[#d4ff00]" : "text-[#444444]"}`}>
+            {fmtDisplay(start)}
+          </p>
+        </div>
+        <div className="flex flex-col items-center gap-0.5">
+          <div className="h-px w-16 bg-[#333333]" />
+          {totalDays > 0 && (
+            <span className="text-[9px] font-bold text-[#888888]">{totalDays} nap</span>
+          )}
+        </div>
+        <div className="text-center">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-[#555555]">Vége</p>
+          <p className={`mt-0.5 font-[family-name:var(--font-barlow-condensed)] text-base font-black ${end ? "text-[#d4ff00]" : "text-[#444444]"}`}>
+            {fmtDisplay(end)}
+          </p>
+        </div>
+      </div>
+
+      {/* Navigáció */}
+      <div className="mb-3 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={prevMonth}
+          disabled={!canGoPrev}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#1a1a1a] text-[#888888] transition hover:border-[#333333] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+        >
+          <ChevronLeft className="h-4 w-4" strokeWidth={2} />
+        </button>
+        <span className="font-[family-name:var(--font-barlow-condensed)] text-sm font-black uppercase tracking-wider text-white">
+          {HU_MONTHS[vm]} {vy}
+        </span>
+        <button
+          type="button"
+          onClick={nextMonth}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#1a1a1a] text-[#888888] transition hover:border-[#333333] hover:text-white"
+        >
+          <ChevronRight className="h-4 w-4" strokeWidth={2} />
+        </button>
+      </div>
+
+      {/* Napok fejléc */}
+      <div className="mb-1 grid grid-cols-7">
+        {HU_DAYS.map((d) => (
+          <div key={d} className="py-1 text-center text-[9px] font-bold uppercase tracking-wider text-[#555555]">
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Naptár cellák */}
+      <div className="grid grid-cols-7 gap-y-0.5">
+        {cells.map((day, i) => {
+          if (day === null) return <div key={`e-${i}`} />;
+
+          const d = new Date(vy, vm, day);
+          const ds = fmtYMD(d);
+          const isPast = d < today;
+          const isToday = ds === todayStr;
+          const isStart = ds === start;
+          const isEnd = ds === end;
+          const inRange = Boolean(start && end && ds > start && ds < end);
+
+          return (
+            <button
+              key={day}
+              type="button"
+              disabled={isPast}
+              onClick={() => handleDay(day)}
+              className={[
+                "flex h-8 w-full items-center justify-center rounded-lg text-xs font-semibold transition-all",
+                isPast
+                  ? "cursor-not-allowed text-[#2a2a2a]"
+                  : isStart || isEnd
+                    ? "bg-[#d4ff00] font-black text-black shadow-[0_0_12px_rgba(212,255,0,0.35)]"
+                    : inRange
+                      ? "bg-[#d4ff00]/10 text-[#d4ff00]"
+                      : isToday
+                        ? "ring-1 ring-[#d4ff00]/50 text-white hover:bg-[#1a1a1a]"
+                        : "text-white hover:bg-[#1a1a1a]",
+              ].join(" ")}
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tipp */}
+      <p className="mt-3 text-center text-[10px] text-[#444444]">
+        {!start
+          ? "Kattints a kezdő napra"
+          : !end
+            ? "Kattints a záró napra"
+            : `${Math.max(1, Math.ceil(totalDays / 7))} hét · ${totalDays} nap`}
+      </p>
     </div>
   );
 }

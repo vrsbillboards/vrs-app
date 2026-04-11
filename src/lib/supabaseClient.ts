@@ -1,22 +1,21 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    "Hiányzó Supabase környezeti változók. " +
-    "Ellenőrizd a NEXT_PUBLIC_SUPABASE_URL és NEXT_PUBLIC_SUPABASE_ANON_KEY értékeket a .env.local fájlban."
-  );
-}
-
 /**
  * Egyetlen Supabase kliens a teljes app számára.
  *
- * Kliens komponensekben (böngésző): az anon kulcsot használja, RLS-re támaszkodik.
- * Szerver Actions / Route Handler-ekben: ugyanez, amíg service_role key nincs szükség.
+ * A placeholder fallback értékek azért szükségesek, hogy a Vercel build lépés
+ * során — amikor a NEXT_PUBLIC_ változók még nem érhetők el — a createClient()
+ * ne dobjon URL-validációs hibát. Valódi API hívások csak böngészőben futnak,
+ * ahol a változók már rendelkezésre állnak.
+ *
+ * Vercel-en állítsd be:
+ *   Settings → Environment Variables →
+ *   NEXT_PUBLIC_SUPABASE_URL és NEXT_PUBLIC_SUPABASE_ANON_KEY
  */
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://placeholder.supabase.co",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "placeholder-anon-key"
+);
 
 /**
  * TypeScript típusok a Supabase adatbázis tábláihoz.

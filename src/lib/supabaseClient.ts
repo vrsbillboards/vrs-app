@@ -1,40 +1,32 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
 /**
- * Lazy Supabase kliens — a createClient() CSAK az első tényleges API híváskor
- * fut le (böngészőben / runtime), soha nem a Vercel build lépés alatt.
- * Ez garantálja, hogy hiányzó / felcserélt env változók nem okoznak build hibát.
+ * Supabase kliens — build-safe inicializálás.
+ *
+ * A guard logika megakadályozza, hogy felcserélt vagy hiányzó env változók
+ * "Invalid supabaseUrl" hibát okozzanak build időben.
  *
  * Vercel → Settings → Environment Variables:
- *   NEXT_PUBLIC_SUPABASE_URL   = https://xxxx.supabase.co
+ *   NEXT_PUBLIC_SUPABASE_URL      = https://xxxx.supabase.co
  *   NEXT_PUBLIC_SUPABASE_ANON_KEY = sb_publishable_...  (vagy eyJ...)
  */
-let _client: SupabaseClient | null = null;
+const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const rawKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
-function getClient(): SupabaseClient {
-  if (!_client) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-    _client = createClient(
-      url.startsWith("https://") ? url : "https://placeholder.supabase.co",
-      key && !key.startsWith("https://") ? key : "placeholder-anon-key",
-    );
-  }
-  return _client;
-}
+const supabaseUrl = rawUrl.startsWith("https://")
+  ? rawUrl
+  : "https://placeholder.supabase.co";
 
-export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
-  get(_target, prop, receiver) {
-    return Reflect.get(getClient(), prop, receiver);
-  },
-});
+const supabaseKey =
+  rawKey && !rawKey.startsWith("https://") ? rawKey : "placeholder-anon-key";
+
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
  * TypeScript típusok a Supabase adatbázis tábláihoz.
- * Később a `supabase gen types typescript` paranccsal automatikusan generálható.
  */
 export type DbProfile = {
-  id: string;            // uuid
+  id: string;
   role: string | null;
   full_name: string | null;
   company: string | null;
@@ -42,7 +34,7 @@ export type DbProfile = {
 };
 
 export type DbBillboard = {
-  id: string;            // text (pl. "GY-OP-04")
+  id: string;
   code: string | null;
   name: string;
   city: string;
@@ -56,10 +48,10 @@ export type DbBillboard = {
 };
 
 export type DbBooking = {
-  id: string;            // uuid
-  user_id: string;       // uuid → auth.users
-  billboard_id: string;  // → billboards.id
-  start_date: string;    // ISO date string
+  id: string;
+  user_id: string;
+  billboard_id: string;
+  start_date: string;
   end_date: string;
   total_price: number;
   status: "pending" | "confirmed" | "cancelled";

@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Check, ChevronLeft, ChevronRight, CreditCard, Trash2, Upload, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, CreditCard, Loader2, Trash2, Upload, X } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
-import { billboards, CITIES } from "@/lib/billboards";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase, type DbBillboard } from "@/lib/supabaseClient";
 import { useToast } from "@/context/ToastContext";
 import { useCreative } from "@/context/CreativeContext";
 
@@ -14,16 +13,8 @@ export type WizardBillboard = {
   city: string;
   type: string;
   price: number;
+  status: "free" | "booked";
 };
-
-/** 6ékony hálózat — az összes felület a varázslóban (lásd `src/lib/billboards.ts`) */
-export const WIZARD_MOCK_PLATFORMS: WizardBillboard[] = billboards.map((b) => ({
-  id: b.id,
-  name: b.name,
-  city: b.city,
-  type: b.type,
-  price: b.price,
-}));
 
 type BookingWizardProps = {
   open: boolean;
@@ -57,6 +48,36 @@ export function BookingWizard({
   const [step, setStep] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(initialBillboardId);
   const [cityFilter, setCityFilter] = useState("");
+
+  // Supabase adatlekérés
+  const [platforms, setPlatforms] = useState<WizardBillboard[]>([]);
+  const [platformsLoading, setPlatformsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setPlatformsLoading(true);
+    supabase
+      .from("billboards")
+      .select("id, name, city, type, price, status")
+      .order("city")
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("[BookingWizard] billboards fetch error:", error.message);
+        } else {
+          setPlatforms(
+            (data as DbBillboard[]).map((b) => ({
+              id: b.id,
+              name: b.name,
+              city: b.city,
+              type: b.type,
+              price: b.price,
+              status: b.status,
+            }))
+          );
+        }
+        setPlatformsLoading(false);
+      });
+  }, [open]);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [timeTarget, setTimeTarget] = useState("full");
@@ -84,8 +105,8 @@ export function BookingWizard({
   }, [open, onClose]);
 
   const selected = useMemo(
-    () => WIZARD_MOCK_PLATFORMS.find((b) => b.id === selectedId) ?? null,
-    [selectedId]
+    () => platforms.find((b) => b.id === selectedId) ?? null,
+    [platforms, selectedId]
   );
 
   const weeks = useMemo(() => {
@@ -96,22 +117,23 @@ export function BookingWizard({
 
   const estimated = selected != null ? selected.price * weeks : null;
 
+  const cities = useMemo(() => [...new Set(platforms.map((b) => b.city))].sort(), [platforms]);
+
   const filteredList = useMemo(() => {
-    if (!cityFilter) return WIZARD_MOCK_PLATFORMS;
-    return WIZARD_MOCK_PLATFORMS.filter((b) => b.city === cityFilter);
-  }, [cityFilter]);
+    if (!cityFilter) return platforms;
+    return platforms.filter((b) => b.city === cityFilter);
+  }, [cityFilter, platforms]);
 
   const canContinue = useMemo(() => {
     if (step === 0) {
       if (selectedId == null) return false;
-      const b = billboards.find((x) => x.id === selectedId);
-      return b?.status === "free";
+      return selected?.status === "free";
     }
     if (step === 1) return Boolean(selectedId && start && end && campaignName.trim());
     if (step === 2) return Boolean(filePreview);
     if (step === 3) return Boolean(selectedId);
     return true;
-  }, [campaignName, end, filePreview, selectedId, start, step]);
+  }, [campaignName, end, filePreview, selected, selectedId, start, step]);
 
   const handleBookingSubmit = async () => {
     // Bejelentkezési guard — AuthModal megnyitása alert helyett
@@ -344,63 +366,73 @@ export function BookingWizard({
                       value={cityFilter}
                       onChange={(e) => setCityFilter(e.target.value)}
                       className={inputBase}
+                      disabled={platformsLoading}
                     >
                       <option value="">Összes város</option>
-                      {CITIES.map((c) => (
+                      {cities.map((c) => (
                         <option key={c} value={c}>
                           {c}
                         </option>
                       ))}
                     </select>
                   </div>
-                  <div className="grid max-h-[min(52vh,480px)] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
-                    {filteredList.map((bb) => {
-                      const on = selectedId === bb.id;
-                      const meta = billboards.find((x) => x.id === bb.id);
-                      const booked = meta?.status === "booked";
-                      return (
-                        <button
-                          key={bb.id}
-                          type="button"
-                          disabled={booked}
-                          onClick={() => {
-                            if (!booked) setSelectedId(bb.id);
-                          }}
-                          className={`rounded-2xl border-2 bg-[#000000] p-4 text-left transition-all ${
-                            booked
-                              ? "cursor-not-allowed border-[#331818] opacity-55"
-                              : on
-                                ? "border-[#d4ff00] shadow-[0_0_24px_rgba(212,255,0,0.22)]"
-                                : "border-[#1a1a1a] hover:border-[#333333]"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="font-mono text-xs font-black text-[#d4ff00]">{bb.id}</span>
-                            {booked ? (
-                              <span className="rounded-md bg-[#3f0f0f] px-1.5 py-0.5 text-[9px] font-bold uppercase text-[#ff6b6b]">
-                                Foglalt
-                              </span>
-                            ) : on ? (
-                              <span className="rounded-md bg-[#d4ff00] px-1.5 py-0.5 text-[9px] font-bold text-black">
-                                Kiválasztva
-                              </span>
-                            ) : null}
-                          </div>
-                          <p className="mt-2 font-semibold text-white">{bb.name}</p>
-                          <p className="mt-1 text-xs text-[#888888]">
-                            {bb.city} · {bb.type}
-                          </p>
-                          <p className="mt-3 font-[family-name:var(--font-barlow-condensed)] text-lg font-black text-[#d4ff00]">
-                            {bb.price.toLocaleString("hu-HU")}{" "}
-                            <span className="text-xs font-normal text-[#888888]">Ft / hét</span>
-                          </p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {filteredList.length === 0 ? (
-                    <p className="mt-3 text-sm text-[#888888]">Nincs találat ehhez a városhoz.</p>
-                  ) : null}
+
+                  {platformsLoading ? (
+                    <div className="flex items-center justify-center gap-3 py-16 text-[#888888]">
+                      <Loader2 className="h-5 w-5 animate-spin text-[#d4ff00]" strokeWidth={2} />
+                      <span className="text-sm">Felületek betöltése…</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid max-h-[min(52vh,480px)] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
+                        {filteredList.map((bb) => {
+                          const on = selectedId === bb.id;
+                          const booked = bb.status === "booked";
+                          return (
+                            <button
+                              key={bb.id}
+                              type="button"
+                              disabled={booked}
+                              onClick={() => {
+                                if (!booked) setSelectedId(bb.id);
+                              }}
+                              className={`rounded-2xl border-2 bg-[#000000] p-4 text-left transition-all ${
+                                booked
+                                  ? "cursor-not-allowed border-[#331818] opacity-55"
+                                  : on
+                                    ? "border-[#d4ff00] shadow-[0_0_24px_rgba(212,255,0,0.22)]"
+                                    : "border-[#1a1a1a] hover:border-[#333333]"
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="font-mono text-xs font-black text-[#d4ff00]">{bb.id}</span>
+                                {booked ? (
+                                  <span className="rounded-md bg-[#3f0f0f] px-1.5 py-0.5 text-[9px] font-bold uppercase text-[#ff6b6b]">
+                                    Foglalt
+                                  </span>
+                                ) : on ? (
+                                  <span className="rounded-md bg-[#d4ff00] px-1.5 py-0.5 text-[9px] font-bold text-black">
+                                    Kiválasztva
+                                  </span>
+                                ) : null}
+                              </div>
+                              <p className="mt-2 font-semibold text-white">{bb.name}</p>
+                              <p className="mt-1 text-xs text-[#888888]">
+                                {bb.city} · {bb.type}
+                              </p>
+                              <p className="mt-3 font-[family-name:var(--font-barlow-condensed)] text-lg font-black text-[#d4ff00]">
+                                {bb.price.toLocaleString("hu-HU")}{" "}
+                                <span className="text-xs font-normal text-[#888888]">Ft / hét</span>
+                              </p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {!platformsLoading && filteredList.length === 0 && (
+                        <p className="mt-3 text-sm text-[#888888]">Nincs találat ehhez a városhoz.</p>
+                      )}
+                    </>
+                  )}
                 </WizardPanel>
               )}
 

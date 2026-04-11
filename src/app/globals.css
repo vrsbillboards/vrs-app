@@ -1,0 +1,217 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+:root {
+  --bg: #070908;
+  --bg2: #0c0f0b;
+  --bg3: #111610;
+  --bg4: #161d12;
+  --card: #0e130d;
+  --neon: #d4ff00;
+  --ng: rgba(212, 255, 0, 0.2);
+  --ns: rgba(212, 255, 0, 0.07);
+  --nd: #8aaa00;
+  --nk: #263600;
+  --text: #eeffc0;
+  --t2: #7aaa44;
+  --t3: #3a6022;
+  --b1: rgba(212, 255, 0, 0.07);
+  --b2: rgba(212, 255, 0, 0.14);
+  --b3: rgba(212, 255, 0, 0.28);
+  --red: #ff5a3a;
+  --rs: rgba(255, 90, 58, 0.12);
+  --yellow: #ffc832;
+  --ys: rgba(255, 200, 50, 0.12);
+  --blue: #38bdf8;
+  --bs: rgba(56, 189, 248, 0.1);
+}
+
+@theme inline {
+  --font-sans: var(--font-barlow), ui-sans-serif, system-ui, sans-serif;
+  --font-condensed: var(--font-barlow-condensed), ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-barlow), sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--nk) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--nk);
+  border-radius: 3px;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button {
+  font-family: var(--font-barlow), sans-serif;
+  cursor: pointer;
+}
+
+input,
+select,
+textarea {
+  font-family: var(--font-barlow), sans-serif;
+}
+
+/* Zajréteg: ne takarja a modálokat / fixed UI-t (alacsony z-index, pointer-events: none) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.3;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+}
+
+/* Leaflet */
+.leaflet-container {
+  background: #060907 !important;
+}
+
+.leaflet-control-zoom {
+  border: 1px solid var(--b2) !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  box-shadow: none !important;
+}
+
+.leaflet-control-zoom a {
+  background: var(--bg3) !important;
+  color: var(--neon) !important;
+  border-bottom-color: var(--b1) !important;
+  font-size: 15px !important;
+  line-height: 26px !important;
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.leaflet-control-attribution {
+  background: rgba(7, 9, 8, 0.85) !important;
+  color: var(--t3) !important;
+  font-size: 9px !important;
+}
+
+.leaflet-control-attribution a {
+  color: var(--nd) !important;
+}
+
+.custom-leaflet-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Cyberpunk neon marker (Leaflet divIcon — Tailwind-ekvivalens megjelenés) */
+.vrs-marker-pulse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  animation: vrs-marker-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.vrs-marker-dot {
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  background-color: #d4ff00;
+  border: 2px solid #000000;
+  box-shadow: 0 0 15px #d4ff00;
+}
+
+@keyframes vrs-marker-ping {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+    filter: brightness(1.15);
+  }
+}
+
+@keyframes flk {
+  0%,
+  89%,
+  91%,
+  93%,
+  100% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 0.7;
+  }
+  92% {
+    opacity: 1;
+  }
+}
+
+@keyframes nbp {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(212, 255, 0, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(212, 255, 0, 0);
+  }
+}
+
+@keyframes ltk {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes sclPop {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-flk {
+  animation: flk 8s infinite;
+}
+
+.animate-nbp {
+  animation: nbp 2s infinite;
+}
+
+.animate-ltk {
+  animation: ltk 28s linear infinite;
+}
+
+.animate-scl-pop {
+  animation: sclPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}

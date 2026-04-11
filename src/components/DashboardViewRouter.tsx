@@ -53,9 +53,21 @@ export function DashboardViewRouter({
         />
       );
     case "analytics":
-      return <AnalyticsView />;
+      return (
+        <AnalyticsView
+          user={user}
+          onOpenAuth={onOpenAuth}
+          onRequestBooking={onRequestBooking}
+        />
+      );
     case "invoices":
-      return <InvoicesView />;
+      return (
+        <InvoicesView
+          user={user}
+          onOpenAuth={onOpenAuth}
+          onRequestBooking={onRequestBooking}
+        />
+      );
     case "preview":
       return <PreviewView />;
     case "roi":

@@ -1,73 +1,56 @@
 "use client";
 
-import { Download, FileText } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CalendarPlus, Download, FileText, LogIn, Receipt } from "lucide-react";
+import type { User } from "@supabase/supabase-js";
+import { supabase, type DbBooking, type DbBillboard } from "@/lib/supabaseClient";
+
+// ─── Típusok ─────────────────────────────────────────────────────────────────
 
 type InvoiceStatus = "Kifizetett" | "Nyitott" | "Lejárt";
 
-type Invoice = {
+type InvoiceRow = {
   id: string;
   number: string;
   campaign: string;
-  issued: string;
-  due: string;
+  issued: Date;
+  due: Date;
   amountFt: number;
   status: InvoiceStatus;
 };
 
-const MOCK_INVOICES: Invoice[] = [
-  { id: "inv-1", number: "2026-0041", campaign: "GY-OP-04 · ETO Park kampány", issued: "2026-03-01", due: "2026-03-31", amountFt: 248_000, status: "Kifizetett" },
-  { id: "inv-2", number: "2026-0042", campaign: "SF-OP-06 · Palotai út (Koronás Park)", issued: "2026-03-10", due: "2026-04-09", amountFt: 168_000, status: "Nyitott" },
-  { id: "inv-3", number: "2026-0043", campaign: "KC-OP-01 · Izsáki út bevezető", issued: "2026-02-15", due: "2026-03-15", amountFt: 116_000, status: "Lejárt" },
-  { id: "inv-4", number: "2026-0044", campaign: "MM-OP-02 · Hild tér (Vasútállomás)", issued: "2026-03-20", due: "2026-04-19", amountFt: 84_000, status: "Nyitott" },
-  { id: "inv-5", number: "2026-0045", campaign: "GY-OF-01 · Óriás tábla 10×15 m", issued: "2026-01-05", due: "2026-02-04", amountFt: 360_000, status: "Kifizetett" },
-  { id: "inv-6", number: "2026-0046", campaign: "SF-OF-03 · Budai út homlokzat", issued: "2026-02-01", due: "2026-03-01", amountFt: 480_000, status: "Lejárt" },
-];
+export type InvoicesViewProps = {
+  user: User | null;
+  onOpenAuth?: () => void;
+  onRequestBooking?: () => void;
+};
 
-const KPI_CARDS = [
-  {
-    label: "Kifizetett",
-    amount: MOCK_INVOICES.filter((i) => i.status === "Kifizetett").reduce((s, i) => s + i.amountFt, 0),
-    color: "#d4ff00",
-    bg: "rgba(212,255,0,0.06)",
-    border: "rgba(212,255,0,0.18)",
-    count: MOCK_INVOICES.filter((i) => i.status === "Kifizetett").length,
-  },
-  {
-    label: "Nyitott",
-    amount: MOCK_INVOICES.filter((i) => i.status === "Nyitott").reduce((s, i) => s + i.amountFt, 0),
-    color: "#fbbf24",
-    bg: "rgba(251,191,36,0.06)",
-    border: "rgba(251,191,36,0.2)",
-    count: MOCK_INVOICES.filter((i) => i.status === "Nyitott").length,
-  },
-  {
-    label: "Lejárt",
-    amount: MOCK_INVOICES.filter((i) => i.status === "Lejárt").reduce((s, i) => s + i.amountFt, 0),
-    color: "#ef4444",
-    bg: "rgba(239,68,68,0.06)",
-    border: "rgba(239,68,68,0.2)",
-    count: MOCK_INVOICES.filter((i) => i.status === "Lejárt").length,
-  },
-];
+// ─── Segédfüggvények ─────────────────────────────────────────────────────────
 
-function formatHuDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("hu-HU", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+function deriveStatus(b: DbBooking): InvoiceStatus {
+  if (b.status === "confirmed") return "Kifizetett";
+  if (b.status === "cancelled") return "Lejárt";
+  const due = new Date(b.end_date);
+  due.setDate(due.getDate() + 15);
+  return due < new Date() ? "Lejárt" : "Nyitott";
 }
+
+function fmtDate(d: Date) {
+  return d.toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" });
+}
+
+// ─── Sub-komponensek ──────────────────────────────────────────────────────────
 
 function StatusPill({ status }: { status: InvoiceStatus }) {
   if (status === "Kifizetett")
     return (
-      <span className="inline-flex rounded-full border border-[#d4ff00]/40 bg-[#d4ff00]/12 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[#d4ff00]">
+      <span className="inline-flex rounded-full border border-[#d4ff00]/40 bg-[#d4ff00]/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[#d4ff00]">
         Kifizetett
       </span>
     );
   if (status === "Nyitott")
     return (
-      <span className="inline-flex rounded-full border border-[#fbbf24]/45 bg-[#fbbf24]/12 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[#fbbf24]">
+      <span className="inline-flex rounded-full border border-[#fbbf24]/45 bg-[#fbbf24]/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[#fbbf24]">
         Nyitott
       </span>
     );
@@ -78,7 +61,149 @@ function StatusPill({ status }: { status: InvoiceStatus }) {
   );
 }
 
-export function InvoicesView() {
+function SkeletonRow() {
+  return (
+    <tr className="border-b border-[#1a1a1a]/80">
+      {Array.from({ length: 7 }).map((_, i) => (
+        <td key={i} className="px-5 py-4">
+          <div className="h-4 w-full animate-pulse rounded bg-[#1a1a1a]" />
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+function LoginPrompt({ onOpenAuth }: { onOpenAuth?: () => void }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-6 py-16 text-center">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#1a1a1a] bg-[#0c0f0b] text-[#888888]">
+        <LogIn className="h-7 w-7" strokeWidth={1.5} />
+      </div>
+      <div>
+        <p className="font-[family-name:var(--font-barlow-condensed)] text-xl font-black text-white">
+          Bejelentkezés szükséges
+        </p>
+        <p className="mt-1 text-sm text-[#888888]">
+          A számláid megtekintéséhez jelentkezz be.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onOpenAuth}
+        className="inline-flex items-center gap-2 rounded-xl bg-[#d4ff00] px-6 py-3 font-[family-name:var(--font-barlow-condensed)] text-sm font-black uppercase tracking-wider text-black transition hover:brightness-110"
+      >
+        <LogIn className="h-4 w-4" strokeWidth={2.5} />
+        Bejelentkezés
+      </button>
+    </div>
+  );
+}
+
+function EmptyState({ onRequestBooking }: { onRequestBooking?: () => void }) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-5 py-20 text-center">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#1a1a1a] bg-[#0c0f0b] text-[#555555]">
+        <Receipt className="h-7 w-7" strokeWidth={1.5} />
+      </div>
+      <div>
+        <p className="font-[family-name:var(--font-barlow-condensed)] text-xl font-black text-white">
+          Még nincsenek számlák
+        </p>
+        <p className="mt-1 max-w-xs text-sm text-[#888888]">
+          Az első kampányod lefoglalása után a kifizetések és számlák itt jelennek meg.
+        </p>
+      </div>
+      {onRequestBooking && (
+        <button
+          type="button"
+          onClick={onRequestBooking}
+          className="inline-flex items-center gap-2 rounded-xl bg-[#d4ff00] px-6 py-3 font-[family-name:var(--font-barlow-condensed)] text-sm font-black uppercase tracking-wider text-black transition hover:brightness-110"
+        >
+          <CalendarPlus className="h-4 w-4" strokeWidth={2.5} />
+          Új foglalás
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Fő komponens ─────────────────────────────────────────────────────────────
+
+export function InvoicesView({ user, onOpenAuth, onRequestBooking }: InvoicesViewProps) {
+  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    setIsLoading(true);
+
+    Promise.all([
+      supabase
+        .from("bookings")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false }),
+      supabase.from("billboards").select("id, name, city"),
+    ]).then(([bookingsRes, billboardsRes]) => {
+      const bookings = (bookingsRes.data ?? []) as DbBooking[];
+      const bbs = (billboardsRes.data ?? []) as Pick<DbBillboard, "id" | "name" | "city">[];
+      const bbMap = new Map(bbs.map((b) => [b.id, b]));
+
+      const rows: InvoiceRow[] = bookings.map((b, i) => {
+        const bb = bbMap.get(b.billboard_id);
+        const issued = new Date(b.created_at);
+        const due = new Date(b.end_date);
+        due.setDate(due.getDate() + 15);
+        const year = issued.getFullYear();
+        return {
+          id: b.id,
+          number: `${year}-${String(1001 + i).padStart(4, "0")}`,
+          campaign: bb ? `${bb.id} · ${bb.name}` : b.billboard_id,
+          issued,
+          due,
+          amountFt: b.total_price,
+          status: deriveStatus(b),
+        };
+      });
+
+      setInvoices(rows);
+      setIsLoading(false);
+    });
+  }, [user]);
+
+  if (!user) return <LoginPrompt onOpenAuth={onOpenAuth} />;
+
+  const paid = invoices.filter((i) => i.status === "Kifizetett");
+  const open = invoices.filter((i) => i.status === "Nyitott");
+  const overdue = invoices.filter((i) => i.status === "Lejárt");
+
+  const kpiCards = [
+    {
+      label: "Kifizetett",
+      amount: paid.reduce((s, i) => s + i.amountFt, 0),
+      count: paid.length,
+      color: "#d4ff00",
+      bg: "rgba(212,255,0,0.06)",
+      border: "rgba(212,255,0,0.18)",
+    },
+    {
+      label: "Nyitott",
+      amount: open.reduce((s, i) => s + i.amountFt, 0),
+      count: open.length,
+      color: "#fbbf24",
+      bg: "rgba(251,191,36,0.06)",
+      border: "rgba(251,191,36,0.2)",
+    },
+    {
+      label: "Lejárt",
+      amount: overdue.reduce((s, i) => s + i.amountFt, 0),
+      count: overdue.length,
+      color: "#ef4444",
+      bg: "rgba(239,68,68,0.06)",
+      border: "rgba(239,68,68,0.2)",
+    },
+  ];
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#000000]">
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
@@ -91,83 +216,105 @@ export function InvoicesView() {
               Számlák
             </h1>
             <p className="mt-1 text-[11px] text-[#888888]">
-              Kifizetett és nyitott számlák · PDF letöltés elérhető
+              Foglalásaidhoz tartozó kifizetések · PDF letöltés
             </p>
           </div>
         </div>
 
-        {/* KPI sor */}
-        <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3">
-          {KPI_CARDS.map((k) => (
-            <article
-              key={k.label}
-              className="relative overflow-hidden rounded-xl border bg-[#111610] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-              style={{ borderColor: k.border, background: k.bg }}
-            >
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-px"
-                style={{ background: `linear-gradient(90deg,transparent,${k.color}60,transparent)` }} />
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#888888]">{k.label}</p>
-              <p
-                className="mt-2 font-[family-name:var(--font-barlow-condensed)] text-[clamp(1.5rem,4vw,2rem)] font-black leading-none tabular-nums"
-                style={{ color: k.color, textShadow: `0 0 24px ${k.color}44` }}
-              >
-                {k.amount.toLocaleString("hu-HU")} Ft
-              </p>
-              <p className="mt-2 text-[11px] text-[#888888]">{k.count} számla</p>
-            </article>
-          ))}
-        </div>
-
-        {/* Tábla */}
-        <div className="overflow-hidden rounded-2xl border border-[#1a1a1a] bg-[#0e130d] shadow-[0_24px_64px_rgba(0,0,0,0.4)]">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] border-collapse text-left">
-              <thead>
-                <tr className="border-b border-[#1a1a1a] text-[10px] font-black uppercase tracking-[0.14em] text-[#888888]">
-                  <th className="px-5 py-4 font-bold">Számlaszám</th>
-                  <th className="px-5 py-4 font-bold">Kampány</th>
-                  <th className="px-5 py-4 font-bold">Kiállítás</th>
-                  <th className="px-5 py-4 font-bold">Határidő</th>
-                  <th className="px-5 py-4 font-bold">Összeg</th>
-                  <th className="px-5 py-4 font-bold">Állapot</th>
-                  <th className="px-5 py-4 font-bold text-right">Letöltés</th>
-                </tr>
-              </thead>
-              <tbody>
-                {MOCK_INVOICES.map((inv) => (
-                  <tr
-                    key={inv.id}
-                    className="border-b border-[#1a1a1a]/80 text-sm transition-colors last:border-0 hover:bg-[#111610]/60"
+        {isLoading ? (
+          <>
+            <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="h-24 animate-pulse rounded-xl bg-[#111610]" />
+              ))}
+            </div>
+            <div className="overflow-hidden rounded-2xl border border-[#1a1a1a] bg-[#0e130d]">
+              <table className="w-full min-w-[860px]">
+                <tbody>
+                  {Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} />)}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : invoices.length === 0 ? (
+          <EmptyState onRequestBooking={onRequestBooking} />
+        ) : (
+          <>
+            {/* KPI sor */}
+            <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3">
+              {kpiCards.map((k) => (
+                <article
+                  key={k.label}
+                  className="relative overflow-hidden rounded-xl border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+                  style={{ borderColor: k.border, background: k.bg }}
+                >
+                  <div
+                    className="pointer-events-none absolute inset-x-0 top-0 h-px"
+                    style={{ background: `linear-gradient(90deg,transparent,${k.color}60,transparent)` }}
+                  />
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#888888]">{k.label}</p>
+                  <p
+                    className="mt-2 font-[family-name:var(--font-barlow-condensed)] text-[clamp(1.5rem,4vw,2rem)] font-black leading-none tabular-nums"
+                    style={{ color: k.color }}
                   >
-                    <td className="px-5 py-4 font-mono font-black text-[#d4ff00]">{inv.number}</td>
-                    <td className="px-5 py-4 font-medium text-white">{inv.campaign}</td>
-                    <td className="px-5 py-4 tabular-nums text-[#888888]">{formatHuDate(inv.issued)}</td>
-                    <td className="px-5 py-4 tabular-nums text-[#888888]">{formatHuDate(inv.due)}</td>
-                    <td className="px-5 py-4">
-                      <span className="font-[family-name:var(--font-barlow-condensed)] text-base font-black tabular-nums text-[#d4ff00]">
-                        {inv.amountFt.toLocaleString("hu-HU")} Ft
-                      </span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <StatusPill status={inv.status} />
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.12] px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-[#888888] transition hover:border-[#d4ff00]/35 hover:text-[#d4ff00]"
-                        aria-label={`Számla ${inv.number} letöltése`}
-                      >
-                        <Download className="h-3.5 w-3.5" strokeWidth={2} />
-                        PDF
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                    {k.amount.toLocaleString("hu-HU")} Ft
+                  </p>
+                  <p className="mt-2 text-[11px] text-[#888888]">{k.count} számla</p>
+                </article>
+              ))}
+            </div>
 
+            {/* Tábla */}
+            <div className="overflow-hidden rounded-2xl border border-[#1a1a1a] bg-[#0e130d] shadow-[0_24px_64px_rgba(0,0,0,0.4)]">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[860px] border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-[#1a1a1a] text-[10px] font-black uppercase tracking-[0.14em] text-[#888888]">
+                      <th className="px-5 py-4 font-bold">Számlaszám</th>
+                      <th className="px-5 py-4 font-bold">Kampány</th>
+                      <th className="px-5 py-4 font-bold">Kiállítás</th>
+                      <th className="px-5 py-4 font-bold">Határidő</th>
+                      <th className="px-5 py-4 font-bold">Összeg</th>
+                      <th className="px-5 py-4 font-bold">Állapot</th>
+                      <th className="px-5 py-4 font-bold text-right">Letöltés</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invoices.map((inv) => (
+                      <tr
+                        key={inv.id}
+                        className="border-b border-[#1a1a1a]/80 text-sm transition-colors last:border-0 hover:bg-[#111610]/60"
+                      >
+                        <td className="px-5 py-4 font-mono font-black text-[#d4ff00]">{inv.number}</td>
+                        <td className="px-5 py-4 font-medium text-white">{inv.campaign}</td>
+                        <td className="px-5 py-4 tabular-nums text-[#888888]">{fmtDate(inv.issued)}</td>
+                        <td className="px-5 py-4 tabular-nums text-[#888888]">{fmtDate(inv.due)}</td>
+                        <td className="px-5 py-4">
+                          <span className="font-[family-name:var(--font-barlow-condensed)] text-base font-black tabular-nums text-[#d4ff00]">
+                            {inv.amountFt.toLocaleString("hu-HU")} Ft
+                          </span>
+                        </td>
+                        <td className="px-5 py-4">
+                          <StatusPill status={inv.status} />
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.12] px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-[#888888] transition hover:border-[#d4ff00]/35 hover:text-[#d4ff00]"
+                            aria-label={`Számla ${inv.number} letöltése`}
+                          >
+                            <Download className="h-3.5 w-3.5" strokeWidth={2} />
+                            PDF
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

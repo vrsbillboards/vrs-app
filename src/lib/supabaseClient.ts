@@ -12,10 +12,23 @@ import { createClient } from "@supabase/supabase-js";
  *   Settings → Environment Variables →
  *   NEXT_PUBLIC_SUPABASE_URL és NEXT_PUBLIC_SUPABASE_ANON_KEY
  */
-export const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://placeholder.supabase.co",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "placeholder-anon-key"
-);
+// Ha a változók hiányoznak, fel vannak cserélve, vagy érvénytelen értéket
+// tartalmaznak (build lépés), placeholder értékekkel dolgozunk.
+// A createClient ekkor is példányosul, de éles API hívások csak böngészőben
+// futnak, ahol a valódi változók már rendelkezésre állnak.
+const _rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const _rawKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+
+const _supabaseUrl = _rawUrl.startsWith("https://")
+  ? _rawUrl
+  : "https://placeholder.supabase.co";
+
+const _supabaseKey =
+  _rawKey && !_rawKey.startsWith("https://")
+    ? _rawKey
+    : "placeholder-anon-key";
+
+export const supabase = createClient(_supabaseUrl, _supabaseKey);
 
 /**
  * TypeScript típusok a Supabase adatbázis tábláihoz.

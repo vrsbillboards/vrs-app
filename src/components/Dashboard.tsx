@@ -10,6 +10,7 @@ import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { Sidebar } from "@/components/Sidebar";
 import { Topbar } from "@/components/Topbar";
 import { DashboardViewProvider, useDashboardView } from "@/context/DashboardViewContext";
+import { ToastProvider } from "@/context/ToastContext";
 import { billboards, type SurfaceFilter } from "@/lib/billboards";
 import { requestMapInvalidate } from "@/lib/map-events";
 import { supabase } from "@/lib/supabaseClient";
@@ -18,6 +19,7 @@ import { VIEW_TITLES, type DashboardViewId } from "@/types/dashboard";
 function DashboardShell() {
   const { view, setView, navigate } = useDashboardView();
   const [slim, setSlim] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<SurfaceFilter>("all");
   const [cityFilter, setCityFilter] = useState<string>("all");
@@ -55,12 +57,28 @@ function DashboardShell() {
 
   return (
     <div className="relative z-[1] flex h-screen min-h-0 overflow-hidden bg-[#000000] text-[var(--text)]">
-      <Sidebar
-        slim={slim}
-        onToggleSlim={() => setSlim((s) => !s)}
-        active={view}
-        onNavigate={navigate}
-      />
+      {/* Mobile sidebar overlay */}
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm md:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+      <div
+        className={`fixed inset-y-0 left-0 z-[300] transition-transform duration-300 md:relative md:translate-x-0 ${
+          mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <Sidebar
+          slim={slim}
+          onToggleSlim={() => setSlim((s) => !s)}
+          active={view}
+          onNavigate={(v) => {
+            navigate(v);
+            setMobileSidebarOpen(false);
+          }}
+        />
+      </div>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#0c0f0b]">
         <Topbar
           title={VIEW_TITLES[view]}
@@ -68,6 +86,7 @@ function DashboardShell() {
           onSearchChange={setSearch}
           onOpenNotifications={() => setNotifOpen(true)}
           onNewBooking={() => openWiz()}
+          onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
           user={user}
           onOpenAuth={() => setAuthOpen(true)}
           onLogout={() => supabase.auth.signOut()}
@@ -95,6 +114,8 @@ function DashboardShell() {
               browseSearch={search}
               browseTypeFilter={typeFilter}
               browseCityFilter={cityFilter}
+              user={user}
+              onOpenAuth={() => setAuthOpen(true)}
             />
           </div>
         </div>
@@ -114,6 +135,7 @@ function DashboardShell() {
           requestAnimationFrame(() => requestMapInvalidate());
         }}
         user={user}
+        onOpenAuth={() => setAuthOpen(true)}
       />
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
     </div>
@@ -122,9 +144,11 @@ function DashboardShell() {
 
 export function Dashboard() {
   return (
-    <DashboardViewProvider initialView="map">
-      <DashboardShell />
-    </DashboardViewProvider>
+    <ToastProvider>
+      <DashboardViewProvider initialView="map">
+        <DashboardShell />
+      </DashboardViewProvider>
+    </ToastProvider>
   );
 }
 

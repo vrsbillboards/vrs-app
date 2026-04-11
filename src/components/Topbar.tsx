@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Filter, LogOut, Plus, Search, UserCircle2 } from "lucide-react";
+import { Bell, Filter, LogOut, Menu, Plus, Search, UserCircle2 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 
 type TopbarProps = {
@@ -9,6 +9,7 @@ type TopbarProps = {
   onSearchChange: (v: string) => void;
   onOpenNotifications: () => void;
   onNewBooking: () => void;
+  onOpenMobileSidebar: () => void;
   user: User | null;
   onOpenAuth: () => void;
   onLogout: () => void;
@@ -20,6 +21,7 @@ export function Topbar({
   onSearchChange,
   onOpenNotifications,
   onNewBooking,
+  onOpenMobileSidebar,
   user,
   onOpenAuth,
   onLogout,
@@ -30,6 +32,15 @@ export function Topbar({
 
   return (
     <header className="flex h-[54px] shrink-0 items-center gap-2.5 border-b border-[var(--b1)] bg-[var(--bg2)] px-5">
+      {/* Hamburger — csak mobilon */}
+      <button
+        type="button"
+        onClick={onOpenMobileSidebar}
+        className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-lg border border-[var(--b1)] bg-[var(--bg3)] text-[var(--t2)] transition hover:border-[var(--b2)] hover:text-[var(--neon)] md:hidden"
+        aria-label="Navigáció megnyitása"
+      >
+        <Menu className="h-4 w-4" strokeWidth={2} />
+      </button>
       <h1 className="flex-1 font-[family-name:var(--font-barlow-condensed)] text-[19px] font-extrabold tracking-wide text-[var(--text)]">
         {title}
       </h1>

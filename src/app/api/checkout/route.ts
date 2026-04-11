@@ -18,12 +18,13 @@ function getStripe(): Stripe {
 type CheckoutBody = {
   price: number;
   billboardName: string;
+  bookingId?: string | null;
 };
 
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as CheckoutBody;
-    const { price, billboardName } = body;
+    const { price, billboardName, bookingId } = body;
 
     if (!price || !billboardName) {
       return Response.json(
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
           quantity: 1,
         },
       ],
-      success_url: `${origin}/success`,
+      success_url: `${origin}/success${bookingId ? `?booking_id=${bookingId}` : ""}`,
       cancel_url: `${origin}/`,
     });
 

@@ -1,5 +1,6 @@
 "use client";
 
+import type { User } from "@supabase/supabase-js";
 import type { DashboardViewId } from "@/types/dashboard";
 import type { SurfaceFilter } from "@/lib/billboards";
 import {
@@ -14,11 +15,12 @@ import {
 
 type DashboardViewRouterProps = {
   view: DashboardViewId;
-  /** Varázsló megnyitása (Topbar, térkép, böngészés, foglalások) */
   onRequestBooking: (initialBillboardId?: string | null) => void;
   browseSearch: string;
   browseTypeFilter: SurfaceFilter;
   browseCityFilter: string;
+  user: User | null;
+  onOpenAuth: () => void;
 };
 
 export function DashboardViewRouter({
@@ -27,6 +29,8 @@ export function DashboardViewRouter({
   browseSearch,
   browseTypeFilter,
   browseCityFilter,
+  user,
+  onOpenAuth,
 }: DashboardViewRouterProps) {
   switch (view) {
     case "map":
@@ -41,7 +45,13 @@ export function DashboardViewRouter({
         />
       );
     case "bookings":
-      return <BookingsView onRequestBooking={onRequestBooking} />;
+      return (
+        <BookingsView
+          onRequestBooking={onRequestBooking}
+          user={user}
+          onOpenAuth={onOpenAuth}
+        />
+      );
     case "analytics":
       return <AnalyticsView />;
     case "invoices":

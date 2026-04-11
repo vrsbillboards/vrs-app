@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { CalendarPlus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CalendarPlus, LogIn } from "lucide-react";
+import type { User } from "@supabase/supabase-js";
+import { supabase, type DbBooking } from "@/lib/supabaseClient";
 import { billboards } from "@/lib/billboards";
 
 type BookingTab = "active" | "pending" | "done";
@@ -16,45 +18,25 @@ type BookingRow = {
   status: "Aktív" | "Függőben" | "Befejezett";
 };
 
-function surfaceLine(id: string): { surface: string; location: string } | null {
-  const b = billboards.find((x) => x.id === id);
-  if (!b) return null;
-  return { surface: `${b.id} · ${b.name}`, location: b.city };
+function dbToRow(b: DbBooking): BookingRow {
+  const bb = billboards.find((x) => x.id === b.billboard_id);
+  const surface = bb ? `${bb.id} · ${bb.name}` : b.billboard_id;
+  const location = bb?.city ?? "—";
+  const statusMap: Record<string, BookingRow["status"]> = {
+    confirmed: "Aktív",
+    pending: "Függőben",
+    cancelled: "Befejezett",
+  };
+  return {
+    id: b.id,
+    surface,
+    location,
+    start: new Date(b.start_date),
+    end: new Date(b.end_date),
+    amountFt: b.total_price,
+    status: statusMap[b.status] ?? "Függőben",
+  };
 }
-
-const g1 = surfaceLine("GY001");
-const k1 = surfaceLine("KC001");
-const s1 = surfaceLine("SF001");
-
-const MOCK_BOOKINGS: BookingRow[] = [
-  {
-    id: "bk-1",
-    surface: g1?.surface ?? "GY001 · Mártírok út · centrum",
-    location: g1?.location ?? "Győr",
-    start: new Date(2026, 3, 1),
-    end: new Date(2026, 3, 28),
-    amountFt: 240_000,
-    status: "Aktív",
-  },
-  {
-    id: "bk-2",
-    surface: k1?.surface ?? "KC001 · Izsáki út",
-    location: k1?.location ?? "Kecskemét",
-    start: new Date(2026, 3, 10),
-    end: new Date(2026, 4, 7),
-    amountFt: 198_000,
-    status: "Függőben",
-  },
-  {
-    id: "bk-3",
-    surface: s1?.surface ?? "SF001 · Palotai út",
-    location: s1?.location ?? "Székesfehérvár",
-    start: new Date(2026, 1, 3),
-    end: new Date(2026, 2, 2),
-    amountFt: 156_000,
-    status: "Befejezett",
-  },
-];
 
 function formatHuDate(d: Date): string {
   return d.toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" });
@@ -65,14 +47,7 @@ function durationDays(start: Date, end: Date): number {
 }
 
 function tabLabel(t: BookingTab): string {
-  switch (t) {
-    case "active":
-      return "Aktív";
-    case "pending":
-      return "Függőben";
-    case "done":
-      return "Befejezett";
-  }
+  return t === "active" ? "Aktív" : t === "pending" ? "Függőben" : "Befejezett";
 }
 
 function statusPill(status: BookingRow["status"]) {
@@ -97,29 +72,90 @@ function statusPill(status: BookingRow["status"]) {
   );
 }
 
+function SkeletonRow() {
+  return (
+    <tr className="border-b border-[#1a1a1a]/80">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <td key={i} className="px-4 py-4 sm:px-5">
+          <div className="h-4 w-full animate-pulse rounded bg-[#1a1a1a]" />
+        </td>
+      ))}
+    </tr>
+  );
+}
+
 export type BookingsViewProps = {
   onRequestBooking?: (initialBillboardId?: string | null) => void;
+  user: User | null;
+  onOpenAuth?: () => void;
 };
 
-export function BookingsView({ onRequestBooking }: BookingsViewProps) {
-  const [tab, setTab] = useState<BookingTab>("active");
+export function BookingsView({ onRequestBooking, user, onOpenAuth }: BookingsViewProps) {
+  const [tab, setTab] = useState<BookingTab>("pending");
+  const [allRows, setAllRows] = useState<BookingRow[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    setIsLoading(true);
+    supabase
+      .from("bookings")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("[BookingsView] Supabase fetch error:", error.message);
+        } else {
+          setAllRows((data as DbBooking[]).map(dbToRow));
+        }
+        setIsLoading(false);
+      });
+  }, [user]);
 
   const rows = useMemo(() => {
-    const want =
-      tab === "active" ? "Aktív" : tab === "pending" ? "Függőben" : "Befejezett";
-    return MOCK_BOOKINGS.filter((r) => r.status === want);
-  }, [tab]);
+    const want = tab === "active" ? "Aktív" : tab === "pending" ? "Függőben" : "Befejezett";
+    return allRows.filter((r) => r.status === want);
+  }, [allRows, tab]);
+
+  // Nem bejelentkezett állapot
+  if (!user) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 bg-[#000000] px-6 py-12 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#1a1a1a] bg-[#0c0f0b] text-[#888888]">
+          <LogIn className="h-7 w-7" strokeWidth={1.5} />
+        </div>
+        <div>
+          <p className="font-[family-name:var(--font-barlow-condensed)] text-xl font-black text-white">
+            Foglalásaid megtekintéséhez jelentkezz be
+          </p>
+          <p className="mt-1 text-sm text-[#888888]">
+            A saját foglalásaid és kampányaid itt jelennek meg.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenAuth}
+          className="inline-flex items-center gap-2 rounded-xl bg-[#d4ff00] px-6 py-3 font-[family-name:var(--font-barlow-condensed)] text-sm font-black uppercase tracking-wider text-black transition hover:brightness-110"
+        >
+          <LogIn className="h-4 w-4" strokeWidth={2.5} />
+          Bejelentkezés
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#000000]">
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
+        {/* Fejléc — tab + gomb */}
         <div className="flex flex-col gap-4 border-b border-white/[0.06] pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div
             className="flex flex-wrap gap-1 rounded-xl border border-[#1a1a1a] bg-[#0c0f0b] p-1"
             role="tablist"
             aria-label="Foglalások szűrése"
           >
-            {(["active", "pending", "done"] as const).map((t) => (
+            {(["pending", "active", "done"] as const).map((t) => (
               <button
                 key={t}
                 type="button"
@@ -147,6 +183,7 @@ export function BookingsView({ onRequestBooking }: BookingsViewProps) {
           </button>
         </div>
 
+        {/* Táblázat */}
         <div className="overflow-hidden rounded-2xl border border-[#1a1a1a] bg-[#0e130d] shadow-[0_24px_64px_rgba(0,0,0,0.4)]">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] border-collapse text-left text-sm">
@@ -161,51 +198,55 @@ export function BookingsView({ onRequestBooking }: BookingsViewProps) {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => {
-                  const days = durationDays(row.start, row.end);
-                  return (
-                    <tr
-                      key={row.id}
-                      className="border-b border-[#1a1a1a]/80 transition-colors last:border-0 hover:bg-[#111610]/50"
-                    >
-                      <td className="px-4 py-4 font-semibold text-white sm:px-5">
-                        {row.surface}
-                      </td>
-                      <td className="px-4 py-4 text-[#888888] sm:px-5">{row.location}</td>
-                      <td className="px-4 py-4 text-[#cfcfcf] sm:px-5">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-[13px] font-medium tabular-nums">
-                            {formatHuDate(row.start)} – {formatHuDate(row.end)}
-                          </span>
-                          <span className="text-[11px] text-[#888888]">{days} nap · kampány</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 sm:px-5">
-                        <span className="font-[family-name:var(--font-barlow-condensed)] text-base font-black tabular-nums text-[#d4ff00]">
-                          {row.amountFt.toLocaleString("hu-HU")} Ft
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 sm:px-5">{statusPill(row.status)}</td>
-                      <td className="px-4 py-4 text-right sm:px-5">
-                        <button
-                          type="button"
-                          className="rounded-lg border border-white/[0.12] bg-transparent px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-[#888888] transition hover:border-[#d4ff00]/35 hover:text-[#d4ff00]"
+                {isLoading
+                  ? Array.from({ length: 3 }).map((_, i) => <SkeletonRow key={i} />)
+                  : rows.map((row) => {
+                      const days = durationDays(row.start, row.end);
+                      return (
+                        <tr
+                          key={row.id}
+                          className="border-b border-[#1a1a1a]/80 transition-colors last:border-0 hover:bg-[#111610]/50"
                         >
-                          Részletek
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                          <td className="px-4 py-4 font-semibold text-white sm:px-5">
+                            {row.surface}
+                          </td>
+                          <td className="px-4 py-4 text-[#888888] sm:px-5">{row.location}</td>
+                          <td className="px-4 py-4 text-[#cfcfcf] sm:px-5">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-[13px] font-medium tabular-nums">
+                                {formatHuDate(row.start)} – {formatHuDate(row.end)}
+                              </span>
+                              <span className="text-[11px] text-[#888888]">{days} nap</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 sm:px-5">
+                            <span className="font-[family-name:var(--font-barlow-condensed)] text-base font-black tabular-nums text-[#d4ff00]">
+                              {row.amountFt.toLocaleString("hu-HU")} Ft
+                            </span>
+                          </td>
+                          <td className="px-4 py-4 sm:px-5">{statusPill(row.status)}</td>
+                          <td className="px-4 py-4 text-right sm:px-5">
+                            <button
+                              type="button"
+                              className="rounded-lg border border-white/[0.12] bg-transparent px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-[#888888] transition hover:border-[#d4ff00]/35 hover:text-[#d4ff00]"
+                            >
+                              Részletek
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
               </tbody>
             </table>
           </div>
 
-          {rows.length === 0 ? (
+          {!isLoading && rows.length === 0 && (
             <div className="border-t border-[#1a1a1a] px-6 py-12 text-center text-sm text-[#888888]">
-              Ebben a kategóriában még nincs foglalás.
+              {allRows.length === 0
+                ? "Még nincs egyetlen foglalásod sem. Kezdd az első kampányodat!"
+                : "Ebben a kategóriában nincs foglalás."}
             </div>
-          ) : null}
+          )}
         </div>
       </div>
     </div>

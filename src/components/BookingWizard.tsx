@@ -5,6 +5,7 @@ import { Check, CreditCard, Trash2, Upload, X } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { billboards, CITIES } from "@/lib/billboards";
 import { supabase } from "@/lib/supabaseClient";
+import { useToast } from "@/context/ToastContext";
 
 export type WizardBillboard = {
   id: string;
@@ -29,6 +30,7 @@ type BookingWizardProps = {
   initialBillboardId: string | null;
   onCompleteGoBookings: () => void;
   user: User | null;
+  onOpenAuth?: () => void;
 };
 
 const STEPS = ["Felület", "Időzítés", "Kreatív", "Fizetés"] as const;
@@ -47,7 +49,9 @@ export function BookingWizard({
   initialBillboardId,
   onCompleteGoBookings,
   user,
+  onOpenAuth,
 }: BookingWizardProps) {
+  const { toast } = useToast();
   const [step, setStep] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(initialBillboardId);
   const [cityFilter, setCityFilter] = useState("");
@@ -108,9 +112,11 @@ export function BookingWizard({
   }, [campaignName, end, filePreview, selectedId, start, step]);
 
   const handleBookingSubmit = async () => {
-    // Bejelentkezési guard
+    // Bejelentkezési guard — AuthModal megnyitása alert helyett
     if (!user) {
-      alert("Kérlek jelentkezz be a foglaláshoz!");
+      onClose();
+      onOpenAuth?.();
+      toast("A foglaláshoz be kell jelentkezni.", "info");
       return;
     }
     if (!selected || !start || !end || !selectedFile || estimated == null) return;
@@ -120,8 +126,8 @@ export function BookingWizard({
       // 1. Kreatív feltöltése a Supabase Storage "creatives" bucket-be
       const safeFileName = selectedFile.name
         .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")   // ékezetek eltávolítása
-        .replace(/[^a-zA-Z0-9.\-]/g, "_"); // minden egyéb nem-alnum karakter → _
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9.\-]/g, "_");
       const uniqueName = `${Date.now()}_${safeFileName}`;
       const { error: uploadError } = await supabase.storage
         .from("creatives")
@@ -135,15 +141,19 @@ export function BookingWizard({
 
       console.info("[BookingWizard] Creative uploaded →", urlData.publicUrl);
 
-      // 2. Foglalás mentése a bookings táblába (user.id a bejelentkezett felhasználótól)
-      const { error: insertError } = await supabase.from("bookings").insert({
-        user_id: user.id,
-        billboard_id: selected.id,
-        start_date: start,
-        end_date: end,
-        total_price: estimated,
-        status: "pending",
-      });
+      // 2. Foglalás mentése a bookings táblába
+      const { data: bookingData, error: insertError } = await supabase
+        .from("bookings")
+        .insert({
+          user_id: user.id,
+          billboard_id: selected.id,
+          start_date: start,
+          end_date: end,
+          total_price: estimated,
+          status: "pending",
+        })
+        .select("id")
+        .single();
 
       if (insertError) throw insertError;
 
@@ -156,6 +166,7 @@ export function BookingWizard({
         body: JSON.stringify({
           price: estimated,
           billboardName: selected.name,
+          bookingId: bookingData?.id ?? null,
         }),
       });
 
@@ -169,7 +180,7 @@ export function BookingWizard({
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[BookingWizard] Submit error:", msg);
-      alert(`Hiba a foglalás során: ${msg}`);
+      toast(`Hiba a foglalás során: ${msg}`, "error");
       setIsRedirecting(false);
     } finally {
       setIsSubmitting(false);

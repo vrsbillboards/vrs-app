@@ -1,10 +1,32 @@
+"use client";
+
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
-export const metadata = {
-  title: "Sikeres foglalás – VRS Billboards",
-};
+function SuccessContent() {
+  const params = useSearchParams();
+  const bookingId = params.get("booking_id");
+  const [confirmed, setConfirmed] = useState(false);
 
-export default function SuccessPage() {
+  useEffect(() => {
+    if (!bookingId) return;
+    // Frissítjük a foglalás státuszát "confirmed"-re
+    supabase
+      .from("bookings")
+      .update({ status: "confirmed" })
+      .eq("id", bookingId)
+      .then(({ error }) => {
+        if (error) {
+          console.error("[success] Booking update error:", error.message);
+        } else {
+          setConfirmed(true);
+          console.info("[success] Booking confirmed:", bookingId);
+        }
+      });
+  }, [bookingId]);
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#000000] px-6 text-center">
       {/* Háttér noise */}
@@ -44,10 +66,21 @@ export default function SuccessPage() {
             Sikeres fizetés és foglalás!
           </h1>
           <p className="mx-auto max-w-sm text-sm leading-relaxed text-[#888888]">
-            A kreatívod hamarosan kikerül a felületre. A részleteket e-mailben
-            is elküldjük.
+            {confirmed
+              ? "A foglalásod megerősítve. A részleteket e-mailben is elküldjük."
+              : "A kreatívod hamarosan kikerül a felületre. A részleteket e-mailben is elküldjük."}
           </p>
         </div>
+
+        {/* Státusz badge */}
+        {bookingId && (
+          <div className="flex items-center gap-2 rounded-full border border-[#d4ff00]/30 bg-[#d4ff00]/8 px-4 py-2">
+            <span className="h-2 w-2 rounded-full bg-[#d4ff00]" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#d4ff00]">
+              {confirmed ? "Foglalás megerősítve" : "Foglalás feldolgozás alatt…"}
+            </span>
+          </div>
+        )}
 
         {/* CTA */}
         <Link
@@ -79,5 +112,17 @@ export default function SuccessPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-[#000000]">
+        <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#d4ff00]/20 border-t-[#d4ff00]" />
+      </div>
+    }>
+      <SuccessContent />
+    </Suspense>
   );
 }

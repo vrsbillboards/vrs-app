@@ -6,6 +6,7 @@ import type { User } from "@supabase/supabase-js";
 import { billboards, CITIES } from "@/lib/billboards";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/context/ToastContext";
+import { useCreative } from "@/context/CreativeContext";
 
 export type WizardBillboard = {
   id: string;
@@ -52,6 +53,7 @@ export function BookingWizard({
   onOpenAuth,
 }: BookingWizardProps) {
   const { toast } = useToast();
+  const { setPreviewUrl } = useCreative();
   const [step, setStep] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(initialBillboardId);
   const [cityFilter, setCityFilter] = useState("");
@@ -202,7 +204,12 @@ export function BookingWizard({
     if (!f) return;
     setFileName(f.name);
     setSelectedFile(f);
-    setFilePreview(URL.createObjectURL(f));
+    const url = URL.createObjectURL(f);
+    setFilePreview(url);
+    // Megosztjuk a CreativeContext-en keresztül a PreviewView-val
+    if (f.type.startsWith("image/")) {
+      setPreviewUrl(url);
+    }
   };
 
   const clearFile = () => {

@@ -11,6 +11,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { Topbar } from "@/components/Topbar";
 import { DashboardViewProvider, useDashboardView } from "@/context/DashboardViewContext";
 import { ToastProvider } from "@/context/ToastContext";
+import { CreativeProvider } from "@/context/CreativeContext";
 import { billboards, type SurfaceFilter } from "@/lib/billboards";
 import { requestMapInvalidate } from "@/lib/map-events";
 import { supabase } from "@/lib/supabaseClient";
@@ -145,9 +146,11 @@ function DashboardShell() {
 export function Dashboard() {
   return (
     <ToastProvider>
-      <DashboardViewProvider initialView="map">
-        <DashboardShell />
-      </DashboardViewProvider>
+      <CreativeProvider>
+        <DashboardViewProvider initialView="map">
+          <DashboardShell />
+        </DashboardViewProvider>
+      </CreativeProvider>
     </ToastProvider>
   );
 }

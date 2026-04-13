@@ -37,15 +37,10 @@ export async function middleware(request: NextRequest) {
   const ADMIN_EMAIL = "info@vrsbillboards.hu";
   const path = request.nextUrl.pathname;
 
-  // /foglalas — csak bejelentkezett felhasználónak
-  if (!user && path.startsWith("/foglalas")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    url.searchParams.set("auth", "login");
-    return NextResponse.redirect(url);
-  }
+  // /foglalas — a dashboard maga kezeli az auth gate-et (AuthModal),
+  // ezért itt NEM irányítjuk át, csak frissítjük a session cookie-t.
 
-  // /admin — csak az admin e-mail-nek
+  // /admin — kizárólag az admin e-mail-nek engedélyezett
   if (path.startsWith("/admin")) {
     if (!user || user.email !== ADMIN_EMAIL) {
       const url = request.nextUrl.clone();

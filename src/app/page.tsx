@@ -6,6 +6,7 @@ import {
   ArrowRight, BarChart2, CheckCircle2, ChevronDown,
   CreditCard, Map, Menu, Shield, Upload, X, Zap,
 } from "lucide-react";
+import { AuthModal } from "@/components/AuthModal";
 
 /* ─── Scroll reveal ──────────────────────────────────────────────────────── */
 function useScrollReveal() {
@@ -160,8 +161,11 @@ function AppMockup() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
+const ADMIN_EMAIL = "info@vrsbillboards.hu";
+
 export default function LandingPage() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
   const [scrolled, setScrolled]     = useState(false);
 
   useScrollReveal();
@@ -169,6 +173,23 @@ export default function LandingPage() {
   useEffect(() => {
     document.documentElement.classList.add("lp-scroll");
     return () => document.documentElement.classList.remove("lp-scroll");
+  }, []);
+
+  // Admin bejelentkezés figyelése — ha az admin belép, átirányítjuk /admin-ra
+  useEffect(() => {
+    import("@/lib/supabaseClient").then(({ supabase }) => {
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session?.user?.email === ADMIN_EMAIL) {
+          window.location.href = "/admin";
+        }
+      });
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user?.email === ADMIN_EMAIL) {
+          window.location.href = "/admin";
+        }
+      });
+      return () => subscription.unsubscribe();
+    });
   }, []);
 
   useEffect(() => {
@@ -198,9 +219,9 @@ export default function LandingPage() {
             ))}
           </nav>
           <div className="flex items-center gap-3">
-            <Link href="/foglalas" className="hidden rounded-xl border border-[#222] bg-transparent px-5 py-2.5 text-base font-semibold text-[#777777] transition hover:border-[#d4ff00]/30 hover:text-white sm:inline-flex">
+            <button type="button" onClick={() => setAuthOpen(true)} className="hidden rounded-xl border border-[#222] bg-transparent px-5 py-2.5 text-base font-semibold text-[#777777] transition hover:border-[#d4ff00]/30 hover:text-white sm:inline-flex">
               Belépés
-            </Link>
+            </button>
             <Link href="/foglalas" className="inline-flex items-center gap-2 rounded-xl bg-[#d4ff00] px-5 py-2.5 text-base font-black text-black transition hover:brightness-110">
               Foglalás <ArrowRight className="h-4 w-4" strokeWidth={3} />
             </Link>
@@ -612,7 +633,7 @@ export default function LandingPage() {
               <a href="#features" className="text-[#444444] transition hover:text-white">Funkciók</a>
               <a href="#how"      className="text-[#444444] transition hover:text-white">Folyamat</a>
               <a href="#faq"      className="text-[#444444] transition hover:text-white">FAQ</a>
-              <Link href="/foglalas"                className="text-[#444444] transition hover:text-[#d4ff00]">Belépés</Link>
+              <button type="button" onClick={() => setAuthOpen(true)} className="text-[#444444] transition hover:text-[#d4ff00]">Belépés</button>
               <a href="mailto:hello@vrsbillboards.hu" className="text-[#444444] transition hover:text-white">Kapcsolat</a>
               <a href="#"                           className="text-[#444444] transition hover:text-white">Adatvédelem</a>
             </div>
@@ -623,6 +644,9 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Bejelentkezés modal — a landing page-ről is elérhető */}
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
 
     </div>
   );

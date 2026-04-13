@@ -63,7 +63,8 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Foglalás mentése service role kulccsal (RLS megkerülése)
-    const { data, error: insertError } = await admin
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error: insertError } = await (admin as any)
       .from("bookings")
       .insert({
         user_id: user.id,
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
         ...(creative_url ? { creative_url } : {}),
       })
       .select("id")
-      .single();
+      .single() as { data: { id: string } | null; error: { message: string } | null };
 
     if (insertError) {
       console.error("[/api/bookings] DB insert hiba:", insertError.message);
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return Response.json({ id: data.id }, { status: 201 });
+    return Response.json({ id: data!.id }, { status: 201 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[/api/bookings] Váratlan hiba:", message);

@@ -50,11 +50,14 @@ export default async function AdminPage() {
   // 3. Admin klienssel adatok lekérése (RLS megkerülése)
   const admin = getSupabaseAdmin();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adminAny = admin as any;
+
   const [bookingsRes, usersRes] = await Promise.all([
-    admin
+    adminAny
       .from("bookings")
       .select("*")
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false }) as Promise<{ data: AdminBooking[] | null; error: unknown }>,
     admin.auth.admin.listUsers({ perPage: 1000 }),
   ]);
 
@@ -63,7 +66,8 @@ export default async function AdminPage() {
     (usersRes.data?.users ?? []).map((u) => [u.id, u.email ?? u.id])
   );
 
-  const bookings: AdminBooking[] = (bookingsRes.data ?? []).map((b) => ({
+  const rawBookings = (bookingsRes.data ?? []) as AdminBooking[];
+  const bookings: AdminBooking[] = rawBookings.map((b) => ({
     ...b,
     user_email: emailMap.get(b.user_id) ?? b.user_id,
   }));

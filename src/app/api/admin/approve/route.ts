@@ -36,7 +36,8 @@ export async function POST(req: NextRequest) {
     // 3. Status frissítése — a DB check constraintnek megfelelően
     const newStatus = action === "approve" ? "confirmed" : "cancelled";
 
-    const { error: updateError } = await admin
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: updateError } = await (admin as any)
       .from("bookings")
       .update({ status: newStatus })
       .eq("id", bookingId);

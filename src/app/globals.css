@@ -230,3 +230,106 @@ body::before {
 .animate-toast-in {
   animation: toastIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* ─── Landing page: allow scrolling ──────────────────────────────────────── */
+html.lp-scroll,
+html.lp-scroll body {
+  overflow: auto !important;
+  height: auto !important;
+}
+
+/* ─── Scroll-reveal ───────────────────────────────────────────────────────── */
+.sr {
+  opacity: 0;
+  transform: translateY(36px);
+  transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr.sr-v { opacity: 1; transform: translateY(0); }
+.sr-d1 { transition-delay: 0.08s; }
+.sr-d2 { transition-delay: 0.16s; }
+.sr-d3 { transition-delay: 0.24s; }
+.sr-d4 { transition-delay: 0.32s; }
+.sr-d5 { transition-delay: 0.40s; }
+
+.sr-left {
+  opacity: 0;
+  transform: translateX(-40px);
+  transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr-left.sr-v { opacity: 1; transform: translateX(0); }
+
+.sr-right {
+  opacity: 0;
+  transform: translateX(40px);
+  transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr-right.sr-v { opacity: 1; transform: translateX(0); }
+
+/* ─── Marquee ─────────────────────────────────────────────────────────────── */
+@keyframes marquee-lp {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.animate-marquee-lp {
+  animation: marquee-lp 30s linear infinite;
+}
+
+/* ─── Float ───────────────────────────────────────────────────────────────── */
+@keyframes lp-float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-14px); }
+}
+@keyframes lp-float-2 {
+  0%, 100% { transform: translateY(0px) rotate(2deg); }
+  50%       { transform: translateY(-10px) rotate(2deg); }
+}
+.animate-lp-float   { animation: lp-float   7s ease-in-out infinite; }
+.animate-lp-float-2 { animation: lp-float-2 5.5s ease-in-out infinite 1.2s; }
+
+/* ─── Glow pulse ─────────────────────────────────────────────────────────── */
+@keyframes glow-orb {
+  0%, 100% { opacity: 0.13; transform: scale(1); }
+  50%       { opacity: 0.22; transform: scale(1.08); }
+}
+.animate-glow-orb { animation: glow-orb 5s ease-in-out infinite; }
+.animate-glow-orb-slow { animation: glow-orb 8s ease-in-out infinite 2s; }
+
+/* ─── Shimmer sweep ──────────────────────────────────────────────────────── */
+@keyframes shimmer-sweep {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+.animate-shimmer-sweep {
+  animation: shimmer-sweep 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ─── Hero headline word reveal ─────────────────────────────────────────── */
+@keyframes word-in {
+  from { opacity: 0; transform: translateY(60px) skewY(4deg); }
+  to   { opacity: 1; transform: translateY(0) skewY(0deg); }
+}
+.animate-word { animation: word-in 0.9s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-word-d1 { animation-delay: 0.05s; }
+.animate-word-d2 { animation-delay: 0.15s; }
+.animate-word-d3 { animation-delay: 0.25s; }
+.animate-word-d4 { animation-delay: 0.35s; }
+.animate-word-d5 { animation-delay: 0.45s; }
+.animate-word-d6 { animation-delay: 0.55s; }
+
+/* ─── CTA shimmer ────────────────────────────────────────────────────────── */
+@keyframes cta-shine {
+  0%   { left: -100%; }
+  50%, 100% { left: 130%; }
+}
+.cta-shine::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.28) 50%, transparent 60%);
+  animation: cta-shine 3s ease-in-out infinite;
+}

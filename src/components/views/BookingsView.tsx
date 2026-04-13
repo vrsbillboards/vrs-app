@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { CalendarPlus, LogIn } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { supabase, type DbBooking } from "@/lib/supabaseClient";
@@ -72,6 +72,29 @@ function statusPill(status: BookingRow["status"]) {
   );
 }
 
+function DetailField({
+  label,
+  value,
+  mono,
+  accent,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  accent?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[9px] font-black uppercase tracking-[0.15em] text-[#555555]">{label}</span>
+      <span
+        className={`text-[13px] font-semibold ${mono ? "font-mono" : ""} ${accent ? "text-[#d4ff00]" : "text-[#cfcfcf]"}`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
 function SkeletonRow() {
   return (
     <tr className="border-b border-[#1a1a1a]/80">
@@ -94,6 +117,16 @@ export function BookingsView({ onRequestBooking, user, onOpenAuth }: BookingsVie
   const [tab, setTab] = useState<BookingTab>("pending");
   const [allRows, setAllRows] = useState<BookingRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  function toggleExpand(id: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -202,38 +235,61 @@ export function BookingsView({ onRequestBooking, user, onOpenAuth }: BookingsVie
                   ? Array.from({ length: 3 }).map((_, i) => <SkeletonRow key={i} />)
                   : rows.map((row) => {
                       const days = durationDays(row.start, row.end);
+                      const isExpanded = expandedIds.has(row.id);
                       return (
-                        <tr
-                          key={row.id}
-                          className="border-b border-[#1a1a1a]/80 transition-colors last:border-0 hover:bg-[#111610]/50"
-                        >
-                          <td className="px-4 py-4 font-semibold text-white sm:px-5">
-                            {row.surface}
-                          </td>
-                          <td className="px-4 py-4 text-[#888888] sm:px-5">{row.location}</td>
-                          <td className="px-4 py-4 text-[#cfcfcf] sm:px-5">
-                            <div className="flex flex-col gap-0.5">
-                              <span className="text-[13px] font-medium tabular-nums">
-                                {formatHuDate(row.start)} – {formatHuDate(row.end)}
+                        <Fragment key={row.id}>
+                          <tr
+                            className={`border-b border-[#1a1a1a]/80 transition-colors hover:bg-[#111610]/50 ${isExpanded ? "bg-[#111610]/30" : "last:border-0"}`}
+                          >
+                            <td className="px-4 py-4 font-semibold text-white sm:px-5">
+                              {row.surface}
+                            </td>
+                            <td className="px-4 py-4 text-[#888888] sm:px-5">{row.location}</td>
+                            <td className="px-4 py-4 text-[#cfcfcf] sm:px-5">
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-[13px] font-medium tabular-nums">
+                                  {formatHuDate(row.start)} – {formatHuDate(row.end)}
+                                </span>
+                                <span className="text-[11px] text-[#888888]">{days} nap</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 sm:px-5">
+                              <span className="font-[family-name:var(--font-barlow-condensed)] text-base font-black tabular-nums text-[#d4ff00]">
+                                {row.amountFt.toLocaleString("hu-HU")} Ft
                               </span>
-                              <span className="text-[11px] text-[#888888]">{days} nap</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 sm:px-5">
-                            <span className="font-[family-name:var(--font-barlow-condensed)] text-base font-black tabular-nums text-[#d4ff00]">
-                              {row.amountFt.toLocaleString("hu-HU")} Ft
-                            </span>
-                          </td>
-                          <td className="px-4 py-4 sm:px-5">{statusPill(row.status)}</td>
-                          <td className="px-4 py-4 text-right sm:px-5">
-                            <button
-                              type="button"
-                              className="rounded-lg border border-white/[0.12] bg-transparent px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-[#888888] transition hover:border-[#d4ff00]/35 hover:text-[#d4ff00]"
-                            >
-                              Részletek
-                            </button>
-                          </td>
-                        </tr>
+                            </td>
+                            <td className="px-4 py-4 sm:px-5">{statusPill(row.status)}</td>
+                            <td className="px-4 py-4 text-right sm:px-5">
+                              <button
+                                type="button"
+                                onClick={() => toggleExpand(row.id)}
+                                className={`inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition ${
+                                  isExpanded
+                                    ? "border-[#d4ff00]/45 bg-[#d4ff00]/10 text-[#d4ff00]"
+                                    : "border-white/[0.12] bg-transparent text-[#888888] hover:border-[#d4ff00]/35 hover:text-[#d4ff00]"
+                                }`}
+                              >
+                                {isExpanded ? "Bezárás" : "Részletek"}
+                              </button>
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr className="border-b border-[#1a1a1a]/80 last:border-0">
+                              <td colSpan={6} className="bg-[#0a0d09] px-5 py-5">
+                                <div className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
+                                  <DetailField label="Foglalás ID" value={row.id.slice(0, 8).toUpperCase()} mono />
+                                  <DetailField label="Helyszín" value={row.location} />
+                                  <DetailField label="Kezdés" value={formatHuDate(row.start)} />
+                                  <DetailField label="Befejezés" value={formatHuDate(row.end)} />
+                                  <DetailField label="Időtartam" value={`${days} nap (${Math.ceil(days / 7)} hét)`} />
+                                  <DetailField label="Összeg" value={`${row.amountFt.toLocaleString("hu-HU")} Ft`} accent />
+                                  <DetailField label="Állapot" value={row.status} />
+                                  <DetailField label="Felület" value={row.surface} />
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       );
                     })}
               </tbody>

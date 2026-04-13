@@ -1,9 +1,11 @@
 "use client";
 
-import { Bell, Filter, LogOut, Menu, Plus, Search, UserCircle2 } from "lucide-react";
+import { Bell, LogOut, Menu, Plus, Search, UserCircle2 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
+import type { DashboardViewId } from "@/types/dashboard";
 
 type TopbarProps = {
+  view: DashboardViewId;
   title: string;
   search: string;
   onSearchChange: (v: string) => void;
@@ -16,6 +18,7 @@ type TopbarProps = {
 };
 
 export function Topbar({
+  view,
   title,
   search,
   onSearchChange,
@@ -29,6 +32,8 @@ export function Topbar({
   const initials = user?.email
     ? user.email.slice(0, 2).toUpperCase()
     : "VR";
+
+  const isBrowse = view === "browse";
 
   return (
     <header className="flex h-[54px] shrink-0 items-center gap-2.5 border-b border-[var(--b1)] bg-[var(--bg2)] px-5">
@@ -44,23 +49,20 @@ export function Topbar({
       <h1 className="flex-1 font-[family-name:var(--font-barlow-condensed)] text-[19px] font-extrabold tracking-wide text-[var(--text)]">
         {title}
       </h1>
-      <div className="relative w-[240px] max-md:hidden">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-[13px] w-[13px] -translate-y-1/2 text-[var(--t3)]" strokeWidth={2.5} />
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Felület kód, város..."
-          className="w-full rounded-lg border border-[var(--b1)] bg-[var(--bg3)] py-1.5 pl-7 pr-3 text-xs text-[var(--text)] outline-none transition-colors placeholder:text-[var(--t3)] focus:border-[var(--b2)]"
-        />
-      </div>
-      <button
-        type="button"
-        className="inline-flex items-center gap-1 rounded border border-[var(--b1)] bg-transparent px-3 py-1.5 text-[11px] font-semibold text-[var(--t2)] transition-all hover:border-[var(--b2)] hover:text-[var(--text)] max-sm:hidden"
-      >
-        <Filter className="h-3 w-3" strokeWidth={2} />
-        Szűrő
-      </button>
+
+      {/* Keresőmező — csak Böngészés nézetben */}
+      {isBrowse && (
+        <div className="relative w-[240px] max-md:hidden">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-[13px] w-[13px] -translate-y-1/2 text-[var(--t3)]" strokeWidth={2.5} />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Felület kód, város..."
+            className="w-full rounded-lg border border-[var(--b1)] bg-[var(--bg3)] py-1.5 pl-7 pr-3 text-xs text-[var(--text)] outline-none transition-colors placeholder:text-[var(--t3)] focus:border-[var(--b2)]"
+          />
+        </div>
+      )}
       <button
         type="button"
         onClick={onOpenNotifications}

@@ -30,6 +30,7 @@ function DashboardShell() {
   const [wizKey, setWizKey] = useState(0);
   const [user, setUser] = useState<User | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
 
   // Hitelesítési állapot szinkronizálása
   useEffect(() => {
@@ -42,6 +43,17 @@ function DashboardShell() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  // Függőben lévő foglalások száma a sidebar badge-hez
+  useEffect(() => {
+    if (!user) { setPendingCount(0); return; }
+    supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "pending")
+      .then(({ count }) => setPendingCount(count ?? 0));
+  }, [user]);
 
   const available = billboards.filter((b) => b.status === "free").length;
   const booked = billboards.filter((b) => b.status === "booked").length;
@@ -78,10 +90,13 @@ function DashboardShell() {
             navigate(v);
             setMobileSidebarOpen(false);
           }}
+          user={user}
+          pendingCount={pendingCount}
         />
       </div>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#0c0f0b]">
         <Topbar
+          view={view}
           title={VIEW_TITLES[view]}
           search={search}
           onSearchChange={setSearch}
@@ -121,7 +136,7 @@ function DashboardShell() {
           </div>
         </div>
       </div>
-      <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
+      <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} user={user} />
       <BookingWizard
         key={wizKey}
         open={wizOpen}

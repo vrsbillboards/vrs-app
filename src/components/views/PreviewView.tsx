@@ -577,10 +577,11 @@ export function PreviewView() {
                   {/* Fényes sarokeffekt */}
                   <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_15%_20%,rgba(255,255,255,0.06)_0%,transparent_55%)]" />
 
-                  {/* Szöveg overlay */}
+                  {/* Szöveg overlay — inline justifyContent a dinamikus Tailwind class bug elkerülésére */}
                   {showText && (
                     <div
-                      className={`absolute inset-0 flex flex-col justify-${textPos === "top" ? "start" : textPos === "bottom" ? "end" : "center"} gap-3 px-8 text-center ${textPosClass(textPos)}`}
+                      className={`absolute inset-0 flex flex-col gap-3 px-8 text-center ${textPosClass(textPos)}`}
+                      style={{ justifyContent: textPos === "top" ? "flex-start" : textPos === "bottom" ? "flex-end" : "center" }}
                     >
                       {headline && (
                         <p

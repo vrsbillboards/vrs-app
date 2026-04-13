@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarPlus, Download, FileText, LogIn, Receipt } from "lucide-react";
+import { AlertCircle, CalendarPlus, Download, FileText, LogIn, Receipt } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { supabase, type DbBooking, type DbBillboard } from "@/lib/supabaseClient";
+import { useToast } from "@/context/ToastContext";
 
 // ─── Típusok ─────────────────────────────────────────────────────────────────
 
@@ -132,10 +133,14 @@ function EmptyState({ onRequestBooking }: { onRequestBooking?: () => void }) {
 export function InvoicesView({ user, onOpenAuth, onRequestBooking }: InvoicesViewProps) {
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!user) return;
     setIsLoading(true);
+    setFetchError(null);
 
     Promise.all([
       supabase
@@ -145,6 +150,11 @@ export function InvoicesView({ user, onOpenAuth, onRequestBooking }: InvoicesVie
         .order("created_at", { ascending: false }),
       supabase.from("billboards").select("id, name, city"),
     ]).then(([bookingsRes, billboardsRes]) => {
+      if (bookingsRes.error || billboardsRes.error) {
+        setFetchError("Nem sikerült betölteni a számlákat. Kérjük, próbáld újra.");
+        setIsLoading(false);
+        return;
+      }
       const bookings = (bookingsRes.data ?? []) as DbBooking[];
       const bbs = (billboardsRes.data ?? []) as Pick<DbBillboard, "id" | "name" | "city">[];
       const bbMap = new Map(bbs.map((b) => [b.id, b]));
@@ -169,9 +179,32 @@ export function InvoicesView({ user, onOpenAuth, onRequestBooking }: InvoicesVie
       setInvoices(rows);
       setIsLoading(false);
     });
-  }, [user]);
+  }, [user, retryKey]);
 
   if (!user) return <LoginPrompt onOpenAuth={onOpenAuth} />;
+
+  if (fetchError) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 bg-[#000000] px-6 py-16 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#5a1a1a] bg-[#1a0a0a] text-[#ff6b6b]">
+          <AlertCircle className="h-7 w-7" strokeWidth={1.5} />
+        </div>
+        <div>
+          <p className="font-[family-name:var(--font-barlow-condensed)] text-xl font-black text-white">
+            Betöltési hiba
+          </p>
+          <p className="mt-1 max-w-xs text-sm text-[#888888]">{fetchError}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setRetryKey((k) => k + 1)}
+          className="rounded-lg border border-white/[0.12] px-4 py-2 text-sm font-bold text-[#888888] transition hover:border-[#d4ff00]/35 hover:text-[#d4ff00]"
+        >
+          Újrapróbálás
+        </button>
+      </div>
+    );
+  }
 
   const paid = invoices.filter((i) => i.status === "Kifizetett");
   const open = invoices.filter((i) => i.status === "Nyitott");
@@ -300,6 +333,9 @@ export function InvoicesView({ user, onOpenAuth, onRequestBooking }: InvoicesVie
                         <td className="px-5 py-4 text-right">
                           <button
                             type="button"
+                            onClick={() =>
+                              toast(`📄 PDF generálás hamarosan elérhető (${inv.number})`, "info")
+                            }
                             className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.12] px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-[#888888] transition hover:border-[#d4ff00]/35 hover:text-[#d4ff00]"
                             aria-label={`Számla ${inv.number} letöltése`}
                           >

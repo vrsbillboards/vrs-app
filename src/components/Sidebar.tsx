@@ -10,6 +10,7 @@ import {
   Map,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { User } from "@supabase/supabase-js";
 import type { DashboardViewId } from "@/types/dashboard";
 
 type NavItem = {
@@ -20,16 +21,16 @@ type NavItem = {
 };
 
 const mainItems: NavItem[] = [
-  { id: "map", label: "Térkép", icon: Map },
-  { id: "browse", label: "Böngészés", icon: LayoutGrid },
-  { id: "bookings", label: "Foglalásaim", icon: CalendarDays, badge: 2 },
-  { id: "analytics", label: "Analitika", icon: LineChart },
-  { id: "invoices", label: "Számlák", icon: FileText },
+  { id: "map",       label: "Térkép",          icon: Map },
+  { id: "browse",    label: "Böngészés",        icon: LayoutGrid },
+  { id: "bookings",  label: "Foglalásaim",      icon: CalendarDays },
+  { id: "analytics", label: "Analitika",        icon: LineChart },
+  { id: "invoices",  label: "Számlák",          icon: FileText },
 ];
 
 const toolItems: NavItem[] = [
   { id: "preview", label: "Kreatív Előnézet", icon: Eye },
-  { id: "roi", label: "ROI Kalkulátor", icon: Calculator },
+  { id: "roi",     label: "ROI Kalkulátor",   icon: Calculator },
 ];
 
 type SidebarProps = {
@@ -37,9 +38,14 @@ type SidebarProps = {
   onToggleSlim: () => void;
   active: DashboardViewId;
   onNavigate: (view: DashboardViewId) => void;
+  user: User | null;
+  pendingCount: number;
 };
 
-export function Sidebar({ slim, onToggleSlim, active, onNavigate }: SidebarProps) {
+export function Sidebar({ slim, onToggleSlim, active, onNavigate, user, pendingCount }: SidebarProps) {
+  const initials = user?.email ? user.email.slice(0, 2).toUpperCase() : "VR";
+  const displayName = user?.email ?? "VRS Admin";
+  const displayRole = user ? "Bejelentkezve" : "Tulajdonos";
   return (
     <aside
       className={`relative flex shrink-0 flex-col border-r border-[var(--b1)] bg-[#0c0f0b] transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
@@ -78,7 +84,7 @@ export function Sidebar({ slim, onToggleSlim, active, onNavigate }: SidebarProps
         {mainItems.map((item) => (
           <NavButton
             key={item.id}
-            item={item}
+            item={{ ...item, badge: item.id === "bookings" && pendingCount > 0 ? pendingCount : undefined }}
             slim={slim}
             active={active === item.id}
             onClick={() => onNavigate(item.id)}
@@ -98,11 +104,11 @@ export function Sidebar({ slim, onToggleSlim, active, onNavigate }: SidebarProps
       <div className="overflow-hidden border-t border-[var(--b1)] px-2 py-2.5">
         <div className="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 transition-colors hover:bg-[var(--bg3)]">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-[1.5px] border-[var(--b3)] bg-[var(--nk)] font-[family-name:var(--font-barlow-condensed)] text-[11px] font-black text-[#d4ff00] [text-shadow:0_0_8px_rgba(212,255,0,0.2)]">
-            VR
+            {initials}
           </div>
           <div className={slim ? "hidden" : "min-w-0"}>
-            <div className="text-xs font-semibold text-[var(--text)]">VRS Admin</div>
-            <div className="text-[10px] text-[var(--t2)]">Tulajdonos</div>
+            <div className="truncate text-xs font-semibold text-[var(--text)]">{displayName}</div>
+            <div className="text-[10px] text-[var(--t2)]">{displayRole}</div>
           </div>
         </div>
       </div>

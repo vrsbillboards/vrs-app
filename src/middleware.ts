@@ -41,10 +41,11 @@ export async function middleware(request: NextRequest) {
   // ezért itt NEM irányítjuk át, csak frissítjük a session cookie-t.
 
   // /admin — kizárólag az admin e-mail-nek engedélyezett
-  if (path.startsWith("/admin")) {
+  // /admin/login kivétel: a belépési oldalt mindenki elérheti
+  if (path.startsWith("/admin") && !path.startsWith("/admin/login")) {
     if (!user || user.email !== ADMIN_EMAIL) {
       const url = request.nextUrl.clone();
-      url.pathname = "/";
+      url.pathname = "/admin/login";
       return NextResponse.redirect(url);
     }
   }

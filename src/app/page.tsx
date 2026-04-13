@@ -7,6 +7,7 @@ import {
   CreditCard, Map, Menu, Shield, Upload, X, Zap,
 } from "lucide-react";
 import { AuthModal } from "@/components/AuthModal";
+import { supabase } from "@/lib/supabaseClient";
 
 /* ─── Scroll reveal ──────────────────────────────────────────────────────── */
 function useScrollReveal() {
@@ -175,21 +176,21 @@ export default function LandingPage() {
     return () => document.documentElement.classList.remove("lp-scroll");
   }, []);
 
-  // Admin bejelentkezés figyelése — ha az admin belép, átirányítjuk /admin-ra
+  // Ha az admin már be van lépve (session cookie-ban), azonnal átirányítjuk
   useEffect(() => {
-    import("@/lib/supabaseClient").then(({ supabase }) => {
-      supabase.auth.getSession().then(({ data }) => {
-        if (data.session?.user?.email === ADMIN_EMAIL) {
-          window.location.href = "/admin";
-        }
-      });
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (session?.user?.email === ADMIN_EMAIL) {
-          window.location.href = "/admin";
-        }
-      });
-      return () => subscription.unsubscribe();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.email === ADMIN_EMAIL) {
+        window.location.replace("/admin");
+      }
     });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user?.email === ADMIN_EMAIL) {
+        window.location.replace("/admin");
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {

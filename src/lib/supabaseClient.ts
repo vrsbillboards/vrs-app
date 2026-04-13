@@ -1,10 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
 /**
- * Supabase kliens — build-safe inicializálás.
- *
- * A guard logika megakadályozza, hogy felcserélt vagy hiányzó env változók
- * "Invalid supabaseUrl" hibát okozzanak build időben.
+ * Supabase böngésző kliens — @supabase/ssr alapú, cookie-ban tárolja a sessiont.
+ * Ez szükséges ahhoz, hogy a middleware hozzáférjen a bejelentkezett állapothoz.
  *
  * Vercel → Settings → Environment Variables:
  *   NEXT_PUBLIC_SUPABASE_URL      = https://xxxx.supabase.co
@@ -20,7 +18,7 @@ const supabaseUrl = rawUrl.startsWith("https://")
 const supabaseKey =
   rawKey && !rawKey.startsWith("https://") ? rawKey : "placeholder-anon-key";
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createBrowserClient(supabaseUrl, supabaseKey);
 
 /**
  * TypeScript típusok a Supabase adatbázis tábláihoz.

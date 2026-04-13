@@ -120,7 +120,7 @@ export default function MapComponent({ onCampaignBook }: MapComponentProps) {
   const flyLng = selectedBillboard?.lng ?? null;
 
   return (
-    <div className="relative flex h-full min-h-[420px] flex-1 flex-col bg-[#060907]">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#060907]">
       {isLoading && (
         <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-[#060907]/80 backdrop-blur-[2px]">
           <div className="flex flex-col items-center gap-3">
@@ -134,8 +134,8 @@ export default function MapComponent({ onCampaignBook }: MapComponentProps) {
       <MapContainer
         center={CENTER}
         zoom={DEFAULT_ZOOM}
-        className="z-0 h-full w-full flex-1"
-        style={{ minHeight: 360 }}
+        className="z-0 h-full min-h-0 w-full flex-1"
+        style={{ minHeight: 200 }}
         zoomControl={false}
         scrollWheelZoom
       >
@@ -158,7 +158,7 @@ export default function MapComponent({ onCampaignBook }: MapComponentProps) {
       {/* Jobb oldali panel */}
       <aside
         aria-hidden={!selectedBillboard}
-        className={`absolute inset-y-0 right-0 z-40 flex w-full max-w-[400px] flex-col border-l border-[#1a1a1a] bg-[#0c0f0b] shadow-[-12px_0_40px_rgba(0,0,0,0.55)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        className={`absolute inset-y-0 right-0 z-40 flex w-full max-w-[min(400px,100%)] flex-col border-l border-[#1a1a1a] bg-[#0c0f0b] shadow-[-12px_0_40px_rgba(0,0,0,0.55)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           selectedBillboard ? "translate-x-0" : "pointer-events-none translate-x-full"
         }`}
       >

@@ -157,54 +157,77 @@ export function BookingWizard({
         .from("creatives")
         .upload(uniqueName, selectedFile, { upsert: false });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) throw new Error(`Feltöltési hiba: ${uploadError.message}`);
 
       const { data: urlData } = supabase.storage
         .from("creatives")
         .getPublicUrl(uniqueName);
 
-      console.info("[BookingWizard] Creative uploaded →", urlData.publicUrl);
+      // 2. JWT token kinyerése a biztonságos API híváshoz
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error("Lejárt a session. Kérjük, jelentkezz be újra!");
 
-      // 2. Foglalás mentése a bookings táblába
-      const { data: bookingData, error: insertError } = await supabase
-        .from("bookings")
-        .insert({
-          user_id: user.id,
+      // 3. Foglalás mentése a biztonságos /api/bookings végponton keresztül
+      const bookingRes = await fetch("/api/bookings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
           billboard_id: selected.id,
           start_date: start,
           end_date: end,
           total_price: estimated,
-          status: "pending",
-        })
-        .select("id")
-        .single();
+          creative_url: urlData.publicUrl,
+        }),
+      });
 
-      if (insertError) throw insertError;
+      const bookingData = (await bookingRes.json()) as { id?: string; error?: string };
 
-      // 3. Stripe Checkout Session létrehozása és átirányítás
+      if (!bookingRes.ok || !bookingData.id) {
+        throw new Error(bookingData.error ?? "A foglalás mentése sikertelen.");
+      }
+
+      // 4. Stripe Checkout Session létrehozása és átirányítás
       setIsRedirecting(true);
 
-      const res = await fetch("/api/checkout", {
+      const checkoutRes = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           price: estimated,
           billboardName: selected.name,
-          bookingId: bookingData?.id ?? null,
+          bookingId: bookingData.id,
         }),
       });
 
-      const data = (await res.json()) as { url?: string; error?: string };
+      const checkoutData = (await checkoutRes.json()) as { url?: string; error?: string };
 
-      if (!res.ok || !data.url) {
-        throw new Error(data.error ?? "A Stripe session létrehozása sikertelen.");
+      if (!checkoutRes.ok || !checkoutData.url) {
+        // Stripe-specifikus hibakezelés
+        const isPaymentError =
+          checkoutRes.status === 402 ||
+          checkoutData.error?.toLowerCase().includes("card") ||
+          checkoutData.error?.toLowerCase().includes("payment") ||
+          checkoutData.error?.toLowerCase().includes("declined");
+        throw new Error(
+          isPaymentError
+            ? "A fizetés sikertelen. Kérjük, ellenőrizd a bankkártya adataidat!"
+            : (checkoutData.error ?? "A Stripe session létrehozása sikertelen.")
+        );
       }
 
-      window.location.href = data.url;
+      window.location.href = checkoutData.url;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[BookingWizard] Submit error:", msg);
-      toast(`Hiba a foglalás során: ${msg}`, "error");
+      // Stripe fizetési hiba magyarul
+      const displayMsg = msg.includes("card") || msg.includes("declined") || msg.includes("insufficient")
+        ? "A fizetés sikertelen. Kérjük, ellenőrizd a bankkártya adataidat!"
+        : msg;
+      toast(displayMsg, "error");
       setIsRedirecting(false);
     } finally {
       setIsSubmitting(false);
@@ -222,16 +245,33 @@ export function BookingWizard({
     setStep(next);
   };
 
+  const ALLOWED_TYPES = ["image/jpeg", "image/png"];
+  const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
+
   const handleFile = (f: File | null) => {
     if (!f) return;
+
+    if (!ALLOWED_TYPES.includes(f.type)) {
+      toast(
+        "Hibás fájl! Csak JPG/PNG képeket tölthetsz fel, maximum 5MB méretben.",
+        "error"
+      );
+      return;
+    }
+
+    if (f.size > MAX_FILE_BYTES) {
+      toast(
+        "Hibás fájl! Csak JPG/PNG képeket tölthetsz fel, maximum 5MB méretben.",
+        "error"
+      );
+      return;
+    }
+
     setFileName(f.name);
     setSelectedFile(f);
     const url = URL.createObjectURL(f);
     setFilePreview(url);
-    // Megosztjuk a CreativeContext-en keresztül a PreviewView-val
-    if (f.type.startsWith("image/")) {
-      setPreviewUrl(url);
-    }
+    setPreviewUrl(url);
   };
 
   const clearFile = () => {
@@ -265,7 +305,7 @@ export function BookingWizard({
       }}
     >
       <div
-        className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[#1a1a1a] bg-[#0c0f0b] shadow-2xl"
+        className="flex h-[96dvh] max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[#1a1a1a] bg-[#0c0f0b] shadow-2xl sm:h-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Fejléc */}
@@ -513,19 +553,19 @@ export function BookingWizard({
                       e.preventDefault();
                       setDragOver(false);
                       const f = e.dataTransfer.files?.[0] ?? null;
-                      if (f && /\.(jpe?g|png|mp4)$/i.test(f.name)) handleFile(f);
+                      handleFile(f);
                     }}
                   >
                     <label className="block cursor-pointer">
                       <input
                         type="file"
-                        accept=".jpg,.jpeg,.png,.mp4,image/jpeg,image/png,video/mp4"
+                        accept=".jpg,.jpeg,.png,image/jpeg,image/png"
                         className="hidden"
                         onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
                       />
                       <Upload className="mx-auto mb-3 h-10 w-10 text-[#888888]" strokeWidth={1.25} />
                       <p className="text-sm font-semibold text-white">Ejtsd ide a kreatívot</p>
-                      <p className="mt-1 text-xs text-[#888888]">JPG · PNG · MP4 · max. 200 MB</p>
+                      <p className="mt-1 text-xs text-[#888888]">JPG · PNG · max. 5 MB</p>
                     </label>
                   </div>
                   {filePreview ? (
@@ -635,7 +675,7 @@ export function BookingWizard({
             <button
               type="button"
               onClick={() => go(-1)}
-              className={`rounded-xl border border-[#1a1a1a] bg-transparent px-4 py-2.5 text-sm font-semibold text-[#888888] transition hover:border-[#333333] hover:text-white ${
+              className={`min-h-[44px] rounded-xl border border-[#1a1a1a] bg-transparent px-5 py-2.5 text-sm font-semibold text-[#888888] transition hover:border-[#333333] hover:text-white ${
                 step === 0 ? "pointer-events-none invisible" : ""
               }`}
             >
@@ -648,7 +688,7 @@ export function BookingWizard({
               type="button"
               onClick={() => go(1)}
               disabled={!canContinue || isSubmitting}
-              className="inline-flex min-w-[11rem] items-center justify-center gap-2 rounded-xl bg-[#d4ff00] px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35"
+              className="inline-flex min-h-[44px] min-w-[11rem] items-center justify-center gap-2 rounded-xl bg-[#d4ff00] px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35"
             >
               {isSubmitting ? (
                 <>

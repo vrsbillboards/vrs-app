@@ -60,8 +60,30 @@ export async function POST(req: NextRequest) {
 
     return Response.json({ url: session.url });
   } catch (err: unknown) {
+    // Stripe-specifikus hibák strukturált kezelése
+    if (
+      err &&
+      typeof err === "object" &&
+      "type" in err &&
+      typeof (err as { type?: string }).type === "string"
+    ) {
+      const stripeErr = err as { type: string; message?: string; code?: string };
+      const isCardError =
+        stripeErr.type === "StripeCardError" ||
+        stripeErr.code === "card_declined" ||
+        stripeErr.code === "insufficient_funds" ||
+        stripeErr.code === "expired_card" ||
+        stripeErr.code === "incorrect_cvc";
+
+      console.error("[/api/checkout] Stripe hiba:", stripeErr.message, stripeErr.code);
+      return Response.json(
+        { error: stripeErr.message ?? "Stripe hiba", isCardError },
+        { status: isCardError ? 402 : 500 }
+      );
+    }
+
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[/api/checkout] Stripe hiba:", message);
+    console.error("[/api/checkout] Váratlan hiba:", message);
     return Response.json({ error: message }, { status: 500 });
   }
 }

@@ -34,12 +34,24 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user && request.nextUrl.pathname.startsWith("/foglalas")) {
+  const ADMIN_EMAIL = "info@vrsbillboards.hu";
+  const path = request.nextUrl.pathname;
+
+  // /foglalas — csak bejelentkezett felhasználónak
+  if (!user && path.startsWith("/foglalas")) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
-    // Hozzáfűzzük a szándékolt útvonalat, hogy bejelentkezés után visszairányíthassuk
     url.searchParams.set("auth", "login");
     return NextResponse.redirect(url);
+  }
+
+  // /admin — csak az admin e-mail-nek
+  if (path.startsWith("/admin")) {
+    if (!user || user.email !== ADMIN_EMAIL) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

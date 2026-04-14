@@ -2,10 +2,10 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * Middleware — védi a /foglalas útvonalat.
- * Ha a felhasználó nincs bejelentkezve, visszairányít a főoldalra.
+ * Proxy — védi az /admin útvonalat.
+ * (Next.js 16: middleware.ts → proxy.ts, function middleware → proxy)
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(

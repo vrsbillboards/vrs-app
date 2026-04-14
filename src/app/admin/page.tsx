@@ -69,21 +69,23 @@ export default async function AdminPage() {
     redirect("/admin/login");
   }
 
-  // ── 2. Require service role key ──────────────────────────────────────────────
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // ── 2. Build admin client (service role preferred, anon key fallback) ────────
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey     = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const activeKey   = serviceKey || anonKey;   // graceful fallback
 
-  if (!supabaseUrl || !serviceKey) {
+  if (!supabaseUrl || !activeKey) {
     return (
-      <ErrorPage message="A SUPABASE_SERVICE_ROLE_KEY környezeti változó nincs beállítva a Vercel projektben. Adj hozzá a Settings → Environment Variables menüpontban, majd telepítsd újra." />
+      <ErrorPage message="A Supabase környezeti változók (URL / ANON_KEY) nincsenek beállítva. Ellenőrizd a Vercel → Settings → Environment Variables menüpontot." />
     );
   }
 
-  // ── 3. Admin client (inline, no singleton to avoid edge-runtime issues) ─────
+  // ── 3. Admin client ──────────────────────────────────────────────────────────
   let adminClient: ReturnType<typeof import("@supabase/supabase-js").createClient>;
   try {
     const { createClient } = await import("@supabase/supabase-js");
-    adminClient = createClient(supabaseUrl, serviceKey, {
+    adminClient = createClient(supabaseUrl, activeKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
   } catch (err) {

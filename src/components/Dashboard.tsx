@@ -30,7 +30,7 @@ function DashboardShell() {
   const [wizKey, setWizKey] = useState(0);
   const [user, setUser] = useState<User | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
+  const [pendingWhenLoggedIn, setPendingWhenLoggedIn] = useState(0);
 
   // Hitelesítési állapot szinkronizálása
   useEffect(() => {
@@ -44,16 +44,18 @@ function DashboardShell() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Függőben lévő foglalások száma a sidebar badge-hez
+  // Függőben lévő foglalások száma a sidebar badge-hez (kijelentkezéskor deriváltan 0, sync setState nélkül)
   useEffect(() => {
-    if (!user) { setPendingCount(0); return; }
+    if (!user) return;
     supabase
       .from("bookings")
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id)
       .eq("status", "pending")
-      .then(({ count }) => setPendingCount(count ?? 0));
+      .then(({ count }) => setPendingWhenLoggedIn(count ?? 0));
   }, [user]);
+
+  const pendingCount = user ? pendingWhenLoggedIn : 0;
 
   const available = billboards.filter((b) => b.status === "free").length;
   const booked = billboards.filter((b) => b.status === "booked").length;

@@ -92,18 +92,25 @@ export function NotificationsPanel({ open, onClose, user }: NotificationsPanelPr
 
   useEffect(() => {
     if (!open || !user) return;
-    setIsLoading(true);
-    supabase
-      .from("bookings")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(6)
-      .then(({ data }) => {
-        const rows = bookingsToNotifs((data ?? []) as DbBooking[]);
-        setNotifs([...rows, ...systemNotifs]);
-        setIsLoading(false);
-      });
+    let cancelled = false;
+    void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      setIsLoading(true);
+      const { data } = await supabase
+        .from("bookings")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(6);
+      if (cancelled) return;
+      const rows = bookingsToNotifs((data ?? []) as DbBooking[]);
+      setNotifs([...rows, ...systemNotifs]);
+      setIsLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [open, user]);
 
   function markRead(id: string) {

@@ -86,8 +86,8 @@ export function BookingWizard({
   const [fileName, setFileName] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [footerHidden, setFooterHidden] = useState(false);
+  const [success] = useState(false);
+  const [footerHidden] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [cardNumber, setCardNumber] = useState("");

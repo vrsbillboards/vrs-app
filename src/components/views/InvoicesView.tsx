@@ -139,17 +139,22 @@ export function InvoicesView({ user, onOpenAuth, onRequestBooking }: InvoicesVie
 
   useEffect(() => {
     if (!user) return;
-    setIsLoading(true);
-    setFetchError(null);
+    let cancelled = false;
+    void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      setIsLoading(true);
+      setFetchError(null);
 
-    Promise.all([
-      supabase
-        .from("bookings")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false }),
-      supabase.from("billboards").select("id, name, city"),
-    ]).then(([bookingsRes, billboardsRes]) => {
+      const [bookingsRes, billboardsRes] = await Promise.all([
+        supabase
+          .from("bookings")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase.from("billboards").select("id, name, city"),
+      ]);
+      if (cancelled) return;
       if (bookingsRes.error || billboardsRes.error) {
         setFetchError("Nem sikerült betölteni a számlákat. Kérjük, próbáld újra.");
         setIsLoading(false);
@@ -178,7 +183,10 @@ export function InvoicesView({ user, onOpenAuth, onRequestBooking }: InvoicesVie
 
       setInvoices(rows);
       setIsLoading(false);
-    });
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [user, retryKey]);
 
   if (!user) return <LoginPrompt onOpenAuth={onOpenAuth} />;

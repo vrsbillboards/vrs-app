@@ -40,6 +40,13 @@ export async function proxy(request: NextRequest) {
   // /foglalas — a dashboard maga kezeli az auth gate-et (AuthModal),
   // ezért itt NEM irányítjuk át, csak frissítjük a session cookie-t.
 
+  // /partner — csak bejelentkezett felhasználóknak
+  if (path.startsWith("/partner") && !user) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    return NextResponse.redirect(url);
+  }
+
   // /admin — kizárólag az admin e-mail-nek engedélyezett
   // /admin/login kivétel: a belépési oldalt mindenki elérheti
   if (path.startsWith("/admin") && !path.startsWith("/admin/login")) {

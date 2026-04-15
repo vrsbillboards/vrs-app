@@ -130,20 +130,27 @@ export function BookingsView({ onRequestBooking, user, onOpenAuth }: BookingsVie
 
   useEffect(() => {
     if (!user) return;
-    setIsLoading(true);
-    supabase
-      .from("bookings")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("[BookingsView] Supabase fetch error:", error.message);
-        } else {
-          setAllRows((data as DbBooking[]).map(dbToRow));
-        }
-        setIsLoading(false);
-      });
+    let cancelled = false;
+    void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from("bookings")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      if (cancelled) return;
+      if (error) {
+        console.error("[BookingsView] Supabase fetch error:", error.message);
+      } else {
+        setAllRows((data as DbBooking[]).map(dbToRow));
+      }
+      setIsLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   const rows = useMemo(() => {

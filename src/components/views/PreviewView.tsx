@@ -7,7 +7,7 @@ import {
   AlignRight,
   Download,
   Eye,
-  Image,
+  Image as ImageIcon,
   RefreshCw,
   Trash2,
   Type,
@@ -253,7 +253,7 @@ export function PreviewView() {
                     : "text-[#888888] hover:text-white"
                 }`}
               >
-                <Image className="h-3.5 w-3.5" strokeWidth={2} />
+                <ImageIcon className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
                 Kép
               </button>
               <button

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, type ElementType } from "react";
 import {
   AlertCircle,
   BarChart3,
@@ -36,6 +36,106 @@ type Tab =
   | "billboards"
   | "crm"
   | "invoices";
+
+function ClientPortfolioTableHead() {
+  return (
+    <thead>
+      <tr className="border-b border-[#141414] text-[10px] font-black uppercase tracking-[0.14em] text-[#444]">
+        {["Név", "Cég", "Össz. költés", "Foglalások", "Függő", "Regisztrált"].map((h) => (
+          <th key={h} className="px-5 py-3.5 font-bold">{h}</th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+
+type AdminNavItem = { id: Tab; label: string; icon: ElementType; badge?: number };
+
+function AdminShellSidebar({
+  mobile = false,
+  tab,
+  setTab,
+  setSidebarOpen,
+  navItems,
+  adminEmail,
+}: {
+  mobile?: boolean;
+  tab: Tab;
+  setTab: (t: Tab) => void;
+  setSidebarOpen: (v: boolean) => void;
+  navItems: AdminNavItem[];
+  adminEmail: string;
+}) {
+  return (
+    <aside
+      className={`flex h-full flex-col border-r border-[#131313] bg-[#060606] ${
+        mobile
+          ? "fixed inset-y-0 left-0 z-50 w-64 transition-transform"
+          : "hidden w-56 shrink-0 lg:flex xl:w-64"
+      }`}
+    >
+      {/* Logo */}
+      <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-[#131313] px-5">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#d4ff00]/30 bg-[#d4ff00]/8">
+          <Shield className="h-3.5 w-3.5 text-[#d4ff00]" strokeWidth={2.5} />
+        </div>
+        <div>
+          <p className="font-[family-name:var(--font-barlow-condensed)] text-sm font-black tracking-widest text-white">
+            VRS <span className="text-[#d4ff00]">CMD</span>
+          </p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#333]">Command Center</p>
+        </div>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto p-3">
+        <p className="mb-2 px-2 text-[9px] font-bold uppercase tracking-[0.16em] text-[#2a2a2a]">
+          Navigáció
+        </p>
+        {navItems.map(({ id, label, icon: Icon, badge }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => { setTab(id); setSidebarOpen(false); }}
+            className={`group mb-0.5 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold transition ${
+              tab === id
+                ? "bg-[#d4ff00]/10 text-[#d4ff00]"
+                : "text-[#555] hover:bg-[#111] hover:text-[#ccc]"
+            }`}
+          >
+            <Icon
+              className={`h-4 w-4 shrink-0 transition ${tab === id ? "text-[#d4ff00]" : "text-[#3a3a3a] group-hover:text-[#888]"}`}
+              strokeWidth={tab === id ? 2.5 : 2}
+            />
+            <span className="flex-1">{label}</span>
+            {badge ? (
+              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#fbbf24] px-1.5 text-[10px] font-black text-black">
+                {badge}
+              </span>
+            ) : null}
+            {tab === id && <ChevronRight className="h-3 w-3 text-[#d4ff00]/50" strokeWidth={2} />}
+          </button>
+        ))}
+      </nav>
+
+      {/* Footer */}
+      <div className="shrink-0 border-t border-[#131313] p-4">
+        <div className="mb-3 rounded-xl border border-[#1a1a1a] bg-[#0d0d0d] px-3 py-2.5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#333]">Admin</p>
+          <p className="mt-0.5 truncate text-[11px] text-[#555]">{adminEmail}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => supabase.auth.signOut().then(() => (window.location.href = "/"))}
+          className="flex w-full items-center gap-2 rounded-xl border border-[#1a1a1a] px-3 py-2 text-[12px] font-semibold text-[#555] transition hover:border-[#5a1a1a] hover:text-[#ff6b6b]"
+        >
+          <LogOut className="h-3.5 w-3.5" strokeWidth={2} />
+          Kijelentkezés
+        </button>
+      </div>
+    </aside>
+  );
+}
 
 type Props = {
   bookings: AdminBooking[];
@@ -474,16 +574,6 @@ function AgenciesTab({ profiles, bookings }: { profiles: AdminProfile[]; booking
     );
   }
 
-  const TableHead = () => (
-    <thead>
-      <tr className="border-b border-[#141414] text-[10px] font-black uppercase tracking-[0.14em] text-[#444]">
-        {["Név", "Cég", "Össz. költés", "Foglalások", "Függő", "Regisztrált"].map((h) => (
-          <th key={h} className="px-5 py-3.5 font-bold">{h}</th>
-        ))}
-      </tr>
-    </thead>
-  );
-
   return (
     <div className="space-y-6">
       {/* Agencies */}
@@ -502,7 +592,7 @@ function AgenciesTab({ profiles, bookings }: { profiles: AdminProfile[]; booking
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] border-collapse text-left text-sm">
-                <TableHead />
+                <ClientPortfolioTableHead />
                 <tbody>{agencies.map((p) => <ClientRow key={p.id} p={p} />)}</tbody>
               </table>
             </div>
@@ -524,7 +614,7 @@ function AgenciesTab({ profiles, bookings }: { profiles: AdminProfile[]; booking
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] border-collapse text-left text-sm">
-                <TableHead />
+                <ClientPortfolioTableHead />
                 <tbody>{direct.map((p) => <ClientRow key={p.id} p={p} />)}</tbody>
               </table>
             </div>
@@ -897,7 +987,7 @@ export function AdminShell({
   const [tab, setTab] = useState<Tab>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const navItems: { id: Tab; label: string; icon: React.ElementType; badge?: number }[] = [
+  const navItems: AdminNavItem[] = [
     { id: "overview", label: "Áttekintés", icon: LayoutDashboard },
     { id: "bookings", label: "Foglalások", icon: BarChart3, badge: stats.pendingCount || undefined },
     { id: "agencies", label: "Ügyfelek", icon: Users },
@@ -915,85 +1005,28 @@ export function AdminShell({
     invoices: "Számlák & Pénzügy",
   };
 
-  const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
-    <aside
-      className={`flex h-full flex-col border-r border-[#131313] bg-[#060606] ${
-        mobile
-          ? "fixed inset-y-0 left-0 z-50 w-64 transition-transform"
-          : "hidden w-56 shrink-0 lg:flex xl:w-64"
-      }`}
-    >
-      {/* Logo */}
-      <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-[#131313] px-5">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#d4ff00]/30 bg-[#d4ff00]/8">
-          <Shield className="h-3.5 w-3.5 text-[#d4ff00]" strokeWidth={2.5} />
-        </div>
-        <div>
-          <p className="font-[family-name:var(--font-barlow-condensed)] text-sm font-black tracking-widest text-white">
-            VRS <span className="text-[#d4ff00]">CMD</span>
-          </p>
-          <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#333]">Command Center</p>
-        </div>
-      </div>
-
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto p-3">
-        <p className="mb-2 px-2 text-[9px] font-bold uppercase tracking-[0.16em] text-[#2a2a2a]">
-          Navigáció
-        </p>
-        {navItems.map(({ id, label, icon: Icon, badge }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => { setTab(id); setSidebarOpen(false); }}
-            className={`group mb-0.5 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold transition ${
-              tab === id
-                ? "bg-[#d4ff00]/10 text-[#d4ff00]"
-                : "text-[#555] hover:bg-[#111] hover:text-[#ccc]"
-            }`}
-          >
-            <Icon
-              className={`h-4 w-4 shrink-0 transition ${tab === id ? "text-[#d4ff00]" : "text-[#3a3a3a] group-hover:text-[#888]"}`}
-              strokeWidth={tab === id ? 2.5 : 2}
-            />
-            <span className="flex-1">{label}</span>
-            {badge ? (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#fbbf24] px-1.5 text-[10px] font-black text-black">
-                {badge}
-              </span>
-            ) : null}
-            {tab === id && <ChevronRight className="h-3 w-3 text-[#d4ff00]/50" strokeWidth={2} />}
-          </button>
-        ))}
-      </nav>
-
-      {/* Footer */}
-      <div className="shrink-0 border-t border-[#131313] p-4">
-        <div className="mb-3 rounded-xl border border-[#1a1a1a] bg-[#0d0d0d] px-3 py-2.5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#333]">Admin</p>
-          <p className="mt-0.5 truncate text-[11px] text-[#555]">{adminEmail}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => supabase.auth.signOut().then(() => (window.location.href = "/"))}
-          className="flex w-full items-center gap-2 rounded-xl border border-[#1a1a1a] px-3 py-2 text-[12px] font-semibold text-[#555] transition hover:border-[#5a1a1a] hover:text-[#ff6b6b]"
-        >
-          <LogOut className="h-3.5 w-3.5" strokeWidth={2} />
-          Kijelentkezés
-        </button>
-      </div>
-    </aside>
-  );
-
   return (
     <div className="flex h-screen overflow-hidden bg-[#020202] text-white">
-      <Sidebar />
+      <AdminShellSidebar
+        tab={tab}
+        setTab={setTab}
+        setSidebarOpen={setSidebarOpen}
+        navItems={navItems}
+        adminEmail={adminEmail}
+      />
 
       {/* Mobile overlay */}
       {sidebarOpen && (
         <>
           <div className="fixed inset-0 z-40 bg-black/70 lg:hidden" onClick={() => setSidebarOpen(false)} />
-          <Sidebar mobile />
+          <AdminShellSidebar
+            mobile
+            tab={tab}
+            setTab={setTab}
+            setSidebarOpen={setSidebarOpen}
+            navItems={navItems}
+            adminEmail={adminEmail}
+          />
         </>
       )}
 

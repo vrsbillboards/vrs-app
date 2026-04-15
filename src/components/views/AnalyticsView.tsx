@@ -200,15 +200,19 @@ function DistributionChart({ bookings }: { bookings: EnrichedBooking[] }) {
       color: COLORS[i % COLORS.length]!,
     }));
 
-  // Conic gradient
-  let acc = 0;
-  const donutBg = `conic-gradient(from -90deg, ${segments
-    .map((s) => {
-      const start = acc;
-      acc += s.pct;
-      return `${s.color} ${start}% ${acc}%`;
-    })
-    .join(", ")})`;
+  // Conic gradient (reduce — nincs mutálás render közben)
+  const { donutStops } = segments.reduce<{ acc: number; donutStops: string[] }>(
+    (state, s) => {
+      const start = state.acc;
+      const next = state.acc + s.pct;
+      return {
+        acc: next,
+        donutStops: [...state.donutStops, `${s.color} ${start}% ${next}%`],
+      };
+    },
+    { acc: 0, donutStops: [] }
+  );
+  const donutBg = `conic-gradient(from -90deg, ${donutStops.join(", ")})`;
 
   return (
     <section className="flex flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0c0f0b] p-4 shadow-[0_24px_64px_rgba(0,0,0,0.45)] sm:p-5">
@@ -303,12 +307,16 @@ export function AnalyticsView({ user, onOpenAuth, onRequestBooking }: AnalyticsV
 
   useEffect(() => {
     if (!user) return;
-    setIsLoading(true);
-
-    Promise.all([
-      supabase.from("bookings").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
-      supabase.from("billboards").select("id, name, city"),
-    ]).then(([bookingsRes, billboardsRes]) => {
+    let cancelled = false;
+    void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      setIsLoading(true);
+      const [bookingsRes, billboardsRes] = await Promise.all([
+        supabase.from("bookings").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("billboards").select("id, name, city"),
+      ]);
+      if (cancelled) return;
       const raw = (bookingsRes.data ?? []) as DbBooking[];
       const bbs = (billboardsRes.data ?? []) as Pick<DbBillboard, "id" | "name" | "city">[];
       const bbMap = new Map(bbs.map((b) => [b.id, b]));
@@ -325,7 +333,10 @@ export function AnalyticsView({ user, onOpenAuth, onRequestBooking }: AnalyticsV
 
       setBookings(enriched);
       setIsLoading(false);
-    });
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   if (!user) return <LoginPrompt onOpenAuth={onOpenAuth} />;

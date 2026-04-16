@@ -206,16 +206,23 @@ export function BookingWizard({
       const checkoutData = (await checkoutRes.json()) as { url?: string; error?: string };
 
       if (!checkoutRes.ok || !checkoutData.url) {
-        // Stripe-specifikus hibakezelés
+        const errText = (checkoutData.error ?? "").toLowerCase();
         const isPaymentError =
           checkoutRes.status === 402 ||
-          checkoutData.error?.toLowerCase().includes("card") ||
-          checkoutData.error?.toLowerCase().includes("payment") ||
-          checkoutData.error?.toLowerCase().includes("declined");
+          errText.includes("card") ||
+          errText.includes("payment") ||
+          errText.includes("declined");
+        const isStripeConfig =
+          checkoutRes.status === 503 ||
+          (checkoutData as { code?: string }).code === "stripe_not_configured" ||
+          errText.includes("stripe_secret_key");
         throw new Error(
           isPaymentError
             ? "A fizetés sikertelen. Kérjük, ellenőrizd a bankkártya adataidat!"
-            : (checkoutData.error ?? "A Stripe session létrehozása sikertelen.")
+            : isStripeConfig
+              ? checkoutData.error ??
+                "A Stripe nincs beállítva a szerveren. Add hozzá a STRIPE_SECRET_KEY változót a Vercelen, majd redeploy."
+              : (checkoutData.error ?? "A Stripe session létrehozása sikertelen.")
         );
       }
 

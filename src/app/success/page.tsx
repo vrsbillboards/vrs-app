@@ -84,7 +84,7 @@ function SuccessContent() {
 
         {/* CTA */}
         <Link
-          href="/"
+          href="/foglalas"
           className="relative mt-2 inline-flex items-center gap-2 overflow-hidden rounded-xl bg-[#d4ff00] px-7 py-3.5 font-[family-name:var(--font-barlow-condensed)] text-base font-black uppercase tracking-[0.14em] text-black shadow-[0_0_32px_rgba(212,255,0,0.35)] transition after:pointer-events-none after:absolute after:inset-0 after:translate-x-[-100%] after:bg-[linear-gradient(105deg,transparent_40%,rgba(255,255,255,0.28)_50%,transparent_60%)] after:transition-transform after:duration-500 hover:brightness-105 hover:after:translate-x-full active:scale-[0.99]"
         >
           <svg

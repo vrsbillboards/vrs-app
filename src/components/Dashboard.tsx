@@ -11,7 +11,7 @@ import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { Sidebar } from "@/components/Sidebar";
 import { Topbar } from "@/components/Topbar";
 import { DashboardViewProvider, useDashboardView } from "@/context/DashboardViewContext";
-import { ToastProvider } from "@/context/ToastContext";
+import { ToastProvider, useToast } from "@/context/ToastContext";
 import { CreativeProvider } from "@/context/CreativeContext";
 import { billboards, type SurfaceFilter } from "@/lib/billboards";
 import { requestMapInvalidate } from "@/lib/map-events";
@@ -19,7 +19,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { VIEW_TITLES, type DashboardViewId } from "@/types/dashboard";
 
 function DashboardShell() {
-  const { view, setView, navigate } = useDashboardView();
+  const { toast } = useToast();
+  const { view, navigate } = useDashboardView();
   const [slim, setSlim] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -57,6 +58,21 @@ function DashboardShell() {
   }, [user]);
 
   const pendingCount = user ? pendingWhenLoggedIn : 0;
+
+  // Stripe Checkout „Mégsem” — tájékoztató + tiszta URL (query param eltávolítása)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") !== "cancelled") return;
+    toast(
+      "A fizetést megszakítottad. A foglalásod „Függőben” marad — a Foglalásaim menüben ellenőrizheted, vagy indíts új foglalást.",
+      "info"
+    );
+    params.delete("checkout");
+    const q = params.toString();
+    const path = window.location.pathname;
+    window.history.replaceState(null, "", q ? `${path}?${q}` : path);
+  }, [toast]);
 
   const available = billboards.filter((b) => b.status === "free").length;
   const booked = billboards.filter((b) => b.status === "booked").length;
@@ -149,10 +165,6 @@ function DashboardShell() {
           requestAnimationFrame(() => requestMapInvalidate());
         }}
         initialBillboardId={wizBbId}
-        onCompleteGoBookings={() => {
-          setView("bookings");
-          requestAnimationFrame(() => requestMapInvalidate());
-        }}
         user={user}
         onOpenAuth={() => setAuthOpen(true)}
       />

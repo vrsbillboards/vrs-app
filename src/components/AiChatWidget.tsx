@@ -80,13 +80,13 @@ export function AiChatWidget({ variant = "landing" }: { variant?: Variant }) {
   const isApp = variant === "app";
 
   return (
-    <div className="pointer-events-none fixed bottom-5 right-5 z-[5300] flex flex-col items-end gap-3 sm:bottom-6 sm:right-6">
+    <div className="pointer-events-none fixed bottom-5 left-5 z-[5300] flex flex-col items-start gap-3 sm:bottom-6 sm:left-6">
       {open && (
         <div
           id={panelId}
           role="dialog"
           aria-label="VRS asszisztens"
-          className={`pointer-events-auto flex max-h-[min(520px,70vh)] w-[min(100vw-2.5rem,380px)] flex-col overflow-hidden rounded-2xl border shadow-2xl ${
+          className={`pointer-events-auto mb-1 flex max-h-[min(520px,70vh)] w-[min(100vw-2.5rem,380px)] flex-col overflow-hidden rounded-2xl border shadow-2xl ${
             isApp
               ? "border-[#1a2218] bg-[#0a0f0b] shadow-[0_0_40px_rgba(212,255,0,0.08)]"
               : "border-[#1c1c1c] bg-[#080808] shadow-[0_0_50px_rgba(212,255,0,0.12)]"

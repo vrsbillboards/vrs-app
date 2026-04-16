@@ -20,7 +20,6 @@ type BookingWizardProps = {
   open: boolean;
   onClose: () => void;
   initialBillboardId: string | null;
-  onCompleteGoBookings: () => void;
   user: User | null;
   onOpenAuth?: () => void;
 };
@@ -39,7 +38,6 @@ export function BookingWizard({
   open,
   onClose,
   initialBillboardId,
-  onCompleteGoBookings,
   user,
   onOpenAuth,
 }: BookingWizardProps) {
@@ -52,32 +50,44 @@ export function BookingWizard({
   // Supabase adatlekérés
   const [platforms, setPlatforms] = useState<WizardBillboard[]>([]);
   const [platformsLoading, setPlatformsLoading] = useState(false);
+  const [platformsError, setPlatformsError] = useState<string | null>(null);
+  const [billboardFetchTick, setBillboardFetchTick] = useState(0);
 
   useEffect(() => {
     if (!open) return;
-    setPlatformsLoading(true);
-    supabase
-      .from("billboards")
-      .select("id, name, city, type, price, status")
-      .order("city")
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("[BookingWizard] billboards fetch error:", error.message);
-        } else {
-          setPlatforms(
-            (data as DbBillboard[]).map((b) => ({
-              id: b.id,
-              name: b.name,
-              city: b.city,
-              type: b.type,
-              price: b.price,
-              status: b.status,
-            }))
-          );
-        }
-        setPlatformsLoading(false);
-      });
-  }, [open]);
+    let cancelled = false;
+    void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      setPlatformsLoading(true);
+      setPlatformsError(null);
+      const { data, error } = await supabase
+        .from("billboards")
+        .select("id, name, city, type, price, status")
+        .order("city");
+      if (cancelled) return;
+      if (error) {
+        console.error("[BookingWizard] billboards fetch error:", error.message);
+        setPlatformsError(error.message);
+        setPlatforms([]);
+      } else {
+        setPlatforms(
+          ((data ?? []) as DbBillboard[]).map((b) => ({
+            id: b.id,
+            name: b.name,
+            city: b.city,
+            type: b.type,
+            price: b.price,
+            status: b.status,
+          }))
+        );
+      }
+      setPlatformsLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, billboardFetchTick]);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [timeTarget, setTimeTarget] = useState("full");
@@ -86,7 +96,6 @@ export function BookingWizard({
   const [fileName, setFileName] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [success] = useState(false);
   const [footerHidden] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -129,7 +138,12 @@ export function BookingWizard({
       if (selectedId == null) return false;
       return selected?.status === "free";
     }
-    if (step === 1) return Boolean(selectedId && start && end && campaignName.trim());
+    if (step === 1) {
+      if (!selectedId || !start || !end || !campaignName.trim()) return false;
+      const sd = new Date(start).getTime();
+      const ed = new Date(end).getTime();
+      return !Number.isNaN(sd) && !Number.isNaN(ed) && ed >= sd;
+    }
     if (step === 2) return Boolean(filePreview);
     if (step === 3) return Boolean(selectedId);
     return true;
@@ -292,10 +306,6 @@ export function BookingWizard({
       ? `${new Date(start).toLocaleDateString("hu-HU")} – ${new Date(end).toLocaleDateString("hu-HU")}`
       : "—";
 
-  const resetAndClose = () => {
-    onClose();
-  };
-
   if (!open) return null;
 
   const inputBase =
@@ -375,31 +385,6 @@ export function BookingWizard({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
-          {success ? (
-            <div className="py-6 text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#d4ff00]/40 bg-[#d4ff00]/10 text-[#d4ff00] animate-scl-pop">
-                <Check className="h-8 w-8" strokeWidth={2.5} />
-              </div>
-              <p className="font-[family-name:var(--font-barlow-condensed)] text-2xl font-black text-[#d4ff00] sm:text-3xl">
-                Foglalás rögzítve
-              </p>
-              <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-[#888888]">
-                A kampányod feldolgozás alatt áll. Visszaigazolást küldünk e-mailben. A Stripe tranzakció ebben a demóban nem
-                került levonásra.
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  resetAndClose();
-                  onCompleteGoBookings();
-                }}
-                className="mt-6 rounded-xl bg-[#d4ff00] px-6 py-3 text-sm font-bold text-black transition hover:brightness-110"
-              >
-                Foglalásaim megtekintése
-              </button>
-            </div>
-          ) : (
-            <>
               {step === 0 && (
                 <WizardPanel
                   title="Válassz felületet"
@@ -428,6 +413,24 @@ export function BookingWizard({
                     <div className="flex items-center justify-center gap-3 py-16 text-[#888888]">
                       <Loader2 className="h-5 w-5 animate-spin text-[#d4ff00]" strokeWidth={2} />
                       <span className="text-sm">Felületek betöltése…</span>
+                    </div>
+                  ) : platformsError ? (
+                    <div className="flex flex-col items-center gap-4 py-12 text-center">
+                      <p className="max-w-sm text-sm text-[#ff6b6b]">
+                        Nem sikerült betölteni a felületeket: {platformsError}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setBillboardFetchTick((t) => t + 1)}
+                        className="rounded-xl border border-[#d4ff00]/40 bg-[#d4ff00]/10 px-4 py-2 text-xs font-bold uppercase tracking-wide text-[#d4ff00] transition hover:bg-[#d4ff00]/20"
+                      >
+                        Újrapróbálás
+                      </button>
+                    </div>
+                  ) : platforms.length === 0 ? (
+                    <div className="py-12 text-center text-sm text-[#888888]">
+                      <p>Jelenleg nincs listázható felület az adatbázisban.</p>
+                      <p className="mt-2 text-xs text-[#555]">Ellenőrizd a Supabase „billboards” táblát és az RLS beállításokat.</p>
                     </div>
                   ) : (
                     <>
@@ -601,7 +604,7 @@ export function BookingWizard({
               {step === 3 && selected ? (
                 <WizardPanel
                   title="Fizetés"
-                  subtitle="Összesítő és demo Stripe-adatok. Éles környezetben a Stripe Elements kezeli a mezőket."
+                  subtitle="A tényleges fizetés a Stripe biztonságos fizetőoldalán történik. Az alábbi kártyamezők csak tájékoztató minta — a „Fizetés és foglalás” gomb feltölti a kreatívot, elmenti a foglalást, majd átirányít."
                 >
                   <div className="mb-5 space-y-2 rounded-2xl border border-[#1a1a1a] bg-[#000000] p-4 text-sm">
                     <Row k="Felület" v={`${selected.id} — ${selected.name}`} />
@@ -621,7 +624,7 @@ export function BookingWizard({
                   <div className="relative overflow-hidden rounded-2xl border border-[#1a1a1a] bg-gradient-to-br from-[#111111] to-[#000000] p-5">
                     <div className="mb-4 flex items-center gap-2 text-[#888888]">
                       <CreditCard className="h-4 w-4" />
-                      <span className="text-xs font-bold uppercase tracking-wider">Bankkártya (Stripe demo)</span>
+                      <span className="text-xs font-bold uppercase tracking-wider">Mintakártya-adatok (nem itt történik a levonás)</span>
                     </div>
                     <div className="space-y-3">
                       <Field label="Kártyaszám">
@@ -673,8 +676,6 @@ export function BookingWizard({
               {step === 3 && !selected ? (
                 <p className="text-sm text-[#888888]">Előbb válassz felületet az 1. lépésben.</p>
               ) : null}
-            </>
-          )}
         </div>
 
         {!footerHidden ? (

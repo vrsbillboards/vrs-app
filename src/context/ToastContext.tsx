@@ -21,7 +21,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const toast = useCallback((message: string, type: ToastType = "info") => {
     const id = Math.random().toString(36).slice(2);
     setToasts((prev) => [...prev, { id, type, message }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4500);
+    const ms = type === "error" ? 8200 : type === "info" ? 5800 : 4800;
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), ms);
   }, []);
 
   const dismiss = (id: string) => setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -34,7 +35,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div
         aria-live="polite"
         aria-label="Értesítések"
-        className="pointer-events-none fixed bottom-5 right-5 z-[20000] flex flex-col items-end gap-2"
+        className="pointer-events-none fixed bottom-5 right-5 z-[20000] flex max-w-[min(100vw-1.5rem,400px)] flex-col items-end gap-2"
       >
         {toasts.map((t) => (
           <div

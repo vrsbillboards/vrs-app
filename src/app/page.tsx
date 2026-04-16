@@ -6,6 +6,7 @@ import {
   ArrowRight, BarChart2, CheckCircle2, ChevronDown,
   CreditCard, Map, Menu, Shield, Upload, X, Zap,
 } from "lucide-react";
+import { AiChatWidget } from "@/components/AiChatWidget";
 import { AuthModal } from "@/components/AuthModal";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -841,6 +842,7 @@ export default function LandingPage() {
       </footer>
 
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      <AiChatWidget variant="landing" />
     </div>
   );
 }

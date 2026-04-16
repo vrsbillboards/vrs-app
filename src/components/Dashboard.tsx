@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { LayoutGrid, MapPinned } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
+import { AiChatWidget } from "@/components/AiChatWidget";
 import { AuthModal } from "@/components/AuthModal";
 import { BookingWizard } from "@/components/BookingWizard";
 import { DashboardViewRouter } from "@/components/DashboardViewRouter";
@@ -156,6 +157,7 @@ function DashboardShell() {
         onOpenAuth={() => setAuthOpen(true)}
       />
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      <AiChatWidget variant="app" />
     </div>
   );
 }

@@ -1,6 +1,13 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+/** Lazy init — build / hiányzó kulcs esetén ne dobjon a modul betöltésekor. */
+let _resend: Resend | null = null;
+function getResend(): Resend | null {
+  const key = process.env.RESEND_API_KEY?.trim();
+  if (!key) return null;
+  if (!_resend) _resend = new Resend(key);
+  return _resend;
+}
 
 const FROM = "VRS Billboards <hello@vrsbillboards.hu>";
 const BRAND = "#d4ff00";
@@ -203,6 +210,12 @@ export async function sendStatusEmail(
   status: EmailStatus,
   details: StatusEmailDetails = {}
 ): Promise<void> {
+  const resend = getResend();
+  if (!resend) {
+    console.warn("[email] RESEND_API_KEY nincs beállítva — email kihagyva.");
+    return;
+  }
+
   const subject =
     status === "approved"
       ? "Kampány Jóváhagyva! 🚀"

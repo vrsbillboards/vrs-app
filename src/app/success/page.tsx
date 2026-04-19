@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { ScrollUnlock } from "@/components/ScrollUnlock";
 
 function SuccessContent() {
   const params = useSearchParams();
@@ -13,6 +14,7 @@ function SuccessContent() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#000000] px-6 text-center">
+      <ScrollUnlock />
       {/* subtle noise overlay */}
       <div
         aria-hidden

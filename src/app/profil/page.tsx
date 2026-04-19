@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { ScrollUnlock } from "@/components/ScrollUnlock";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -236,7 +237,8 @@ export default async function ProfilPage() {
     : user.email?.split("@")[0] ?? "Partner";
 
   return (
-    <div className="min-h-screen w-full overflow-y-auto bg-[#020202] text-white">
+    <div className="min-h-screen w-full bg-[#020202] text-white">
+      <ScrollUnlock />
       {/* subtle noise */}
       <div
         aria-hidden

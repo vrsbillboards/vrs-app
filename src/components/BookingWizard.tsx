@@ -177,13 +177,15 @@ export function BookingWizard({
         .from("creatives")
         .getPublicUrl(uniqueName);
 
-      // 2. JWT token kinyerése a biztonságos API híváshoz
+      // 2. JWT token kinyerése az /api/checkout híváshoz (user_id szerver-oldalon kerül kinyerésre)
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
       if (!accessToken) throw new Error("Lejárt a session. Kérjük, jelentkezz be újra!");
 
-      // 3. Foglalás mentése a biztonságos /api/bookings végponton keresztül
-      const bookingRes = await fetch("/api/bookings", {
+      // 3. Stripe Checkout Session létrehozása — a foglalást a Stripe webhook hozza létre
+      setIsRedirecting(true);
+
+      const checkoutRes = await fetch("/api/checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -191,29 +193,12 @@ export function BookingWizard({
         },
         body: JSON.stringify({
           billboard_id: selected.id,
+          billboard_name: selected.name,
           start_date: start,
           end_date: end,
           total_price: estimated,
           creative_url: urlData.publicUrl,
-        }),
-      });
-
-      const bookingData = (await bookingRes.json()) as { id?: string; error?: string };
-
-      if (!bookingRes.ok || !bookingData.id) {
-        throw new Error(bookingData.error ?? "A foglalás mentése sikertelen.");
-      }
-
-      // 4. Stripe Checkout Session létrehozása és átirányítás
-      setIsRedirecting(true);
-
-      const checkoutRes = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          price: estimated,
-          billboardName: selected.name,
-          bookingId: bookingData.id,
+          ...(campaignName.trim() ? { campaign_name: campaignName.trim() } : {}),
         }),
       });
 

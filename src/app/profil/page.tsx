@@ -236,7 +236,7 @@ export default async function ProfilPage() {
     : user.email?.split("@")[0] ?? "Partner";
 
   return (
-    <div className="min-h-screen bg-[#020202] text-white">
+    <div className="min-h-screen w-full overflow-y-auto bg-[#020202] text-white">
       {/* subtle noise */}
       <div
         aria-hidden

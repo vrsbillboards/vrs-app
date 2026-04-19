@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Barlow, Barlow_Condensed } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const barlow = Barlow({
@@ -88,10 +89,24 @@ export default function RootLayout({
   return (
     <html
       lang="hu"
-      className={`${barlow.variable} ${barlowCondensed.variable} h-full antialiased`}
+      className={`${barlow.variable} ${barlowCondensed.variable} antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full" suppressHydrationWarning>{children}</body>
+      <body className="min-h-screen" suppressHydrationWarning>
+        {children}
+        <Toaster
+          theme="dark"
+          richColors
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: "#0a0a0a",
+              border: "1px solid #1a1a1a",
+              color: "#fff",
+            },
+          }}
+        />
+      </body>
     </html>
   );
 }

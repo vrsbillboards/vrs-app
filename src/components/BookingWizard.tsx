@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Check, ChevronLeft, ChevronRight, CreditCard, Loader2, Trash2, Upload, X } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { supabase, type DbBillboard } from "@/lib/supabaseClient";
-import { useToast } from "@/context/ToastContext";
+import { toast } from "sonner";
 import { useCreative } from "@/context/CreativeContext";
 
 export type WizardBillboard = {
@@ -41,7 +41,6 @@ export function BookingWizard({
   user,
   onOpenAuth,
 }: BookingWizardProps) {
-  const { toast } = useToast();
   const { setPreviewUrl } = useCreative();
   const [step, setStep] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(initialBillboardId);
@@ -155,7 +154,11 @@ export function BookingWizard({
     if (!user) {
       onClose();
       onOpenAuth?.();
-      toast("A foglaláshoz be kell jelentkezni.", "info");
+      toast.info("A foglaláshoz be kell jelentkezni.");
+      return;
+    }
+    if (!acceptedTerms) {
+      toast.warning("Kérjük, fogadd el az ÁSZF-et a folytatáshoz!");
       return;
     }
     if (!selected || !start || !end || !selectedFile || estimated == null) return;
@@ -234,7 +237,7 @@ export function BookingWizard({
       const displayMsg = msg.includes("card") || msg.includes("declined") || msg.includes("insufficient")
         ? "A fizetés sikertelen. Kérjük, ellenőrizd a bankkártya adataidat!"
         : msg;
-      toast(displayMsg, "error");
+      toast.error(displayMsg);
       setIsRedirecting(false);
     } finally {
       setIsSubmitting(false);
@@ -259,18 +262,12 @@ export function BookingWizard({
     if (!f) return;
 
     if (!ALLOWED_TYPES.includes(f.type)) {
-      toast(
-        "Hibás fájl! Csak JPG/PNG képeket tölthetsz fel, maximum 5MB méretben.",
-        "error"
-      );
+      toast.error("Hibás fájl! Csak JPG/PNG képeket tölthetsz fel, maximum 5MB méretben.");
       return;
     }
 
     if (f.size > MAX_FILE_BYTES) {
-      toast(
-        "Hibás fájl! Csak JPG/PNG képeket tölthetsz fel, maximum 5MB méretben.",
-        "error"
-      );
+      toast.error("Hibás fájl! Csak JPG/PNG képeket tölthetsz fel, maximum 5MB méretben.");
       return;
     }
 

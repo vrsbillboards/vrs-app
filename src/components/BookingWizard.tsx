@@ -99,6 +99,7 @@ export function BookingWizard({
   const [footerHidden] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvc, setCardCvc] = useState("");
@@ -655,6 +656,30 @@ export function BookingWizard({
                       </a>
                     </p>
                   </div>
+
+                  {/* Legal consent */}
+                  <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-[#1a1a1a] bg-[#0a0a0a] p-4 transition hover:border-[#d4ff00]/30">
+                    <span className="relative mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 border-[#333333] bg-[#111111] transition has-[:checked]:border-[#d4ff00] has-[:checked]:bg-[#d4ff00]/10">
+                      <input
+                        type="checkbox"
+                        checked={acceptedTerms}
+                        onChange={(e) => setAcceptedTerms(e.target.checked)}
+                        className="absolute inset-0 cursor-pointer opacity-0"
+                      />
+                      {acceptedTerms && (
+                        <svg viewBox="0 0 12 12" fill="none" className="h-3 w-3 text-[#d4ff00]" aria-hidden>
+                          <polyline points="1.5,6 4.5,9.5 10.5,2.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </span>
+                    <span className="text-[12px] leading-relaxed text-[#888888]">
+                      Kijelentem, hogy elolvastam és elfogadom az{" "}
+                      <a href="#" className="text-[#d4ff00] underline underline-offset-2 hover:brightness-125">ÁSZF</a>
+                      -et és az{" "}
+                      <a href="#" className="text-[#d4ff00] underline underline-offset-2 hover:brightness-125">Adatvédelmi Tájékoztatót</a>
+                      , és vállalom a felelősséget a feltöltött kreatív tartalmáért.
+                    </span>
+                  </label>
                 </WizardPanel>
               ) : null}
 
@@ -680,7 +705,7 @@ export function BookingWizard({
             <button
               type="button"
               onClick={() => go(1)}
-              disabled={!canContinue || isSubmitting}
+              disabled={!canContinue || isSubmitting || (step === 3 && !acceptedTerms)}
               className="inline-flex min-h-[44px] min-w-[11rem] items-center justify-center gap-2 rounded-xl bg-[#d4ff00] px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35"
             >
               {isSubmitting ? (

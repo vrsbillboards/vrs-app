@@ -15,7 +15,7 @@ type BookingRow = {
   start: Date;
   end: Date;
   amountFt: number;
-  status: "Aktív" | "Függőben" | "Befejezett";
+  status: "Aktív" | "Függőben" | "Befejezett" | "Megszakítva";
 };
 
 function dbToRow(b: DbBooking): BookingRow {
@@ -24,8 +24,10 @@ function dbToRow(b: DbBooking): BookingRow {
   const location = bb?.city ?? "—";
   const statusMap: Record<string, BookingRow["status"]> = {
     confirmed: "Aktív",
-    pending: "Függőben",
-    cancelled: "Befejezett",
+    approved:  "Aktív",
+    pending:   "Függőben",
+    cancelled: "Megszakítva",
+    rejected:  "Megszakítva",
   };
   return {
     id: b.id,
@@ -47,7 +49,7 @@ function durationDays(start: Date, end: Date): number {
 }
 
 function tabLabel(t: BookingTab): string {
-  return t === "active" ? "Aktív" : t === "pending" ? "Függőben" : "Befejezett";
+  return t === "active" ? "Aktív" : t === "pending" ? "Függőben" : "Lezárt";
 }
 
 function statusPill(status: BookingRow["status"]) {
@@ -61,7 +63,14 @@ function statusPill(status: BookingRow["status"]) {
   if (status === "Függőben") {
     return (
       <span className="inline-flex rounded-full border border-[#f59e0b]/45 bg-[#f59e0b]/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[#fbbf24]">
-        Függőben
+        Jóváhagyás alatt
+      </span>
+    );
+  }
+  if (status === "Megszakítva") {
+    return (
+      <span className="inline-flex rounded-full border border-[#ff6b6b]/30 bg-[#ff6b6b]/8 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[#ff6b6b]">
+        Megszakítva
       </span>
     );
   }
@@ -117,6 +126,7 @@ export function BookingsView({ onRequestBooking, user, onOpenAuth }: BookingsVie
   const [tab, setTab] = useState<BookingTab>("pending");
   const [allRows, setAllRows] = useState<BookingRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   function toggleExpand(id: string) {
@@ -143,7 +153,9 @@ export function BookingsView({ onRequestBooking, user, onOpenAuth }: BookingsVie
       if (cancelled) return;
       if (error) {
         console.error("[BookingsView] Supabase fetch error:", error.message);
+        setFetchError("A foglalások betöltése sikertelen. Kérjük, töltsd újra az oldalt.");
       } else {
+        setFetchError(null);
         setAllRows((data as DbBooking[]).map(dbToRow));
       }
       setIsLoading(false);
@@ -154,8 +166,9 @@ export function BookingsView({ onRequestBooking, user, onOpenAuth }: BookingsVie
   }, [user]);
 
   const rows = useMemo(() => {
-    const want = tab === "active" ? "Aktív" : tab === "pending" ? "Függőben" : "Befejezett";
-    return allRows.filter((r) => r.status === want);
+    if (tab === "active") return allRows.filter((r) => r.status === "Aktív");
+    if (tab === "pending") return allRows.filter((r) => r.status === "Függőben");
+    return allRows.filter((r) => r.status === "Befejezett" || r.status === "Megszakítva");
   }, [allRows, tab]);
 
   // Nem bejelentkezett állapot
@@ -222,6 +235,13 @@ export function BookingsView({ onRequestBooking, user, onOpenAuth }: BookingsVie
             Új foglalás
           </button>
         </div>
+
+        {/* Hiba */}
+        {fetchError && (
+          <div className="rounded-xl border border-[#ff6b6b]/25 bg-[#ff6b6b]/5 px-4 py-3 text-sm text-[#ff6b6b]">
+            {fetchError}
+          </div>
+        )}
 
         {/* Táblázat */}
         <div className="overflow-hidden rounded-2xl border border-[#1a1a1a] bg-[#0e130d] shadow-[0_24px_64px_rgba(0,0,0,0.4)]">

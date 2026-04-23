@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { Eye, EyeOff, Lock, LogIn, Mail, UserPlus, X } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -82,6 +82,13 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
 
   const inputBase =
     "w-full rounded-xl border border-[#1a1a1a] bg-[#000000] px-3 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-[#555555] focus:border-[#d4ff00]/50 focus:ring-1 focus:ring-[#d4ff00]/15";
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   return (
     <div
@@ -310,6 +317,13 @@ function translateAuthError(msg: string): string {
   if (msg.includes("Unable to validate email")) return "Érvénytelen e-mail-cím.";
   if (msg.includes("rate limit")) return "Túl sok próbálkozás. Kérjük, várj egy kicsit.";
   if (msg.includes("provider is not enabled")) return "Ez a bejelentkezési mód nincs engedélyezve. Kérjük, használj e-mail-t.";
+  if (msg.includes("signup is disabled") || msg.includes("Signups not allowed")) return "A regisztráció jelenleg nem elérhető.";
+  if (msg.includes("Email address") && msg.includes("invalid")) return "Érvénytelen e-mail-cím formátum.";
+  if (msg.includes("Token has expired") || msg.includes("token is invalid")) return "A link lejárt vagy érvénytelen. Kérj új e-mailt.";
+  if (msg.includes("Network") || msg.includes("fetch")) return "Hálózati hiba. Ellenőrizd az internetkapcsolatodat.";
+  if (msg.includes("too many requests") || msg.includes("429")) return "Túl sok próbálkozás. Kérjük, várj egy percet.";
+  // Fallback: don't leak English error details to users
+  if (/[a-zA-Z]{10,}/.test(msg) && !msg.includes(" ")) return "Bejelentkezési hiba. Kérjük, próbáld újra.";
   return msg;
 }
 

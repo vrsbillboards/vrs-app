@@ -99,10 +99,6 @@ export function BookingWizard({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvc, setCardCvc] = useState("");
-  const [cardName, setCardName] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -282,6 +278,7 @@ export function BookingWizard({
     setFilePreview(null);
     setFileName(null);
     setSelectedFile(null);
+    setPreviewUrl(null);
   };
 
   const reviewDates =
@@ -524,7 +521,7 @@ export function BookingWizard({
               {step === 2 && (
                 <WizardPanel
                   title="Kreatív"
-                  subtitle="Húzd ide a fájlt (JPG, PNG, MP4), vagy kattints a feltöltéshez."
+                  subtitle="Húzd ide a fájlt (JPG vagy PNG, max. 5 MB), vagy kattints a feltöltéshez."
                 >
                   <div
                     className={`mb-4 rounded-2xl border-2 border-dashed px-5 py-10 text-center transition-colors ${
@@ -605,53 +602,29 @@ export function BookingWizard({
                   </div>
 
                   <div className="relative overflow-hidden rounded-2xl border border-[#1a1a1a] bg-gradient-to-br from-[#111111] to-[#000000] p-5">
-                    <div className="mb-4 flex items-center gap-2 text-[#888888]">
-                      <CreditCard className="h-4 w-4" />
-                      <span className="text-xs font-bold uppercase tracking-wider">Mintakártya-adatok (nem itt történik a levonás)</span>
-                    </div>
-                    <div className="space-y-3">
-                      <Field label="Kártyaszám">
-                        <input
-                          value={cardNumber}
-                          onChange={(e) => setCardNumber(e.target.value)}
-                          placeholder="4242 4242 4242 4242"
-                          autoComplete="cc-number"
-                          className={inputBase}
-                        />
-                      </Field>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <Field label="Lejárat">
-                          <input
-                            value={cardExpiry}
-                            onChange={(e) => setCardExpiry(e.target.value)}
-                            placeholder="HH / ÉÉ"
-                            className={inputBase}
-                          />
-                        </Field>
-                        <Field label="CVC">
-                          <input
-                            value={cardCvc}
-                            onChange={(e) => setCardCvc(e.target.value)}
-                            placeholder="123"
-                            className={inputBase}
-                          />
-                        </Field>
+                    <div className="flex flex-col items-center gap-4 py-4 text-center">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#d4ff00]/20 bg-[#d4ff00]/5">
+                        <CreditCard className="h-7 w-7 text-[#d4ff00]" strokeWidth={1.5} />
                       </div>
-                      <Field label="Kártyán szereplő név">
-                        <input
-                          value={cardName}
-                          onChange={(e) => setCardName(e.target.value)}
-                          placeholder="Mint Péter"
-                          className={inputBase}
-                        />
-                      </Field>
+                      <div>
+                        <p className="text-sm font-semibold text-white">Biztonságos Stripe fizetés</p>
+                        <p className="mt-1 text-xs leading-relaxed text-[#666]">
+                          A „Fizetés és foglalás" gombra kattintva átirányítunk a Stripe
+                          titkosított fizetőoldalára, ahol megadhatod bankkártya adataidat.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap justify-center gap-3 text-[10px] font-bold uppercase tracking-wide text-[#444]">
+                        {["Visa", "Mastercard", "American Express"].map((b) => (
+                          <span key={b} className="rounded-md border border-[#1a1a1a] bg-[#0a0a0a] px-2.5 py-1">{b}</span>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-[#333]">
+                        256-bites titkosítás ·{" "}
+                        <a href="https://stripe.com" className="text-[#555] underline hover:text-[#d4ff00]" target="_blank" rel="noreferrer">
+                          Stripe
+                        </a>
+                      </p>
                     </div>
-                    <p className="mt-4 text-center text-[10px] text-[#555555]">
-                      Titkosított csatorna ·{" "}
-                      <a href="https://stripe.com" className="text-[#888888] underline hover:text-[#d4ff00]" target="_blank" rel="noreferrer">
-                        Stripe
-                      </a>
-                    </p>
                   </div>
 
                   {/* Legal consent */}
@@ -942,7 +915,9 @@ function InlineDateRangePicker({
           ? "Kattints a kezdő napra"
           : !end
             ? "Kattints a záró napra"
-            : `${Math.max(1, Math.ceil(totalDays / 7))} hét · ${totalDays} nap`}
+            : totalDays <= 1
+              ? "1 nap"
+              : `${Math.max(1, Math.ceil(totalDays / 7))} hét · ${totalDays} nap`}
       </p>
     </div>
   );

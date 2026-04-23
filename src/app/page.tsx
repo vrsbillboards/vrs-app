@@ -325,6 +325,13 @@ export default function LandingPage() {
               <a key={l.href} href={l.href} onClick={() => setMobileOpen(false)}
                 className="rounded-xl px-4 py-4 text-xl font-semibold text-[#666] transition hover:bg-[#0c0f0b] hover:text-white">{l.label}</a>
             ))}
+            <button
+              type="button"
+              onClick={() => { setMobileOpen(false); setAuthOpen(true); }}
+              className="mt-2 rounded-xl border border-[#1e1e1e] px-4 py-4 text-xl font-semibold text-[#555] transition hover:border-[#d4ff00]/25 hover:text-white text-left"
+            >
+              Belépés
+            </button>
             <Link href="/foglalas" onClick={() => setMobileOpen(false)}
               className="mt-4 flex items-center justify-center gap-2 rounded-2xl bg-[#d4ff00] py-4 text-xl font-black text-black shadow-[0_0_40px_rgba(212,255,0,0.4)]">
               Foglalás Indítása <ArrowRight className="h-5 w-5" strokeWidth={3} />
@@ -830,7 +837,7 @@ export default function LandingPage() {
               <a href="#how"      className="text-[#333] transition hover:text-white">Folyamat</a>
               <a href="#faq"      className="text-[#333] transition hover:text-white">FAQ</a>
               <button type="button" onClick={() => setAuthOpen(true)} className="text-left text-[#333] transition hover:text-[#d4ff00]">Belépés</button>
-              <a href="mailto:hello@vrsbillboards.hu" className="text-[#333] transition hover:text-white">Kapcsolat</a>
+              <a href="mailto:info@vrsbillboards.hu" className="text-[#333] transition hover:text-white">Kapcsolat</a>
               <a href="#" className="text-[#333] transition hover:text-white">Adatvédelem</a>
             </div>
           </div>

@@ -52,6 +52,6 @@ export type DbBooking = {
   start_date: string;
   end_date: string;
   total_price: number;
-  status: "pending" | "confirmed" | "cancelled";
+  status: "pending" | "confirmed" | "approved" | "cancelled" | "rejected";
   created_at: string;
 };

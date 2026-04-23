@@ -189,28 +189,19 @@ export function Dashboard() {
 function LiveTicker() {
   const freeN = billboards.filter((b) => b.status === "free").length;
   const totalN = billboards.length;
-  const sampleGy = billboards.find((b) => b.id === "GY001");
-  const otsHint = sampleGy?.ots ?? "45 000";
   const items = [
     <>
-      <strong>Kovács Bt.</strong> foglalt · GY001 · 4 hét{" "}
-      <span className="text-[#d4ff00]">+240 000 Ft</span>
-    </>,
-    <>
       Felület elérhetőség:{" "}
-      <strong>
-        {freeN}/{totalN}
-      </strong>{" "}
-      szabad
+      <strong>{freeN}/{totalN}</strong> szabad
     </>,
     <>
-      <strong>Mai megjelenés:</strong> <span className="text-[#d4ff00]">0</span> · Indulás előtt
+      <strong>{totalN} felület</strong> elérhető a platformon · 6 városban
     </>,
     <>
-      6ékony partner: <strong>aktív</strong> · 6 város · {totalN} felület a platformon
+      Foglalj <strong>percek alatt</strong> — bankkártyás fizetés, azonnali visszaigazolás
     </>,
     <>
-      Legforgalmasabb: <strong>GY001</strong> · ~{otsHint}/nap OTS
+      Prémium DOOH · Győr · Székesfehérvár · Kecskemét · Budapest és más városok
     </>,
   ];
   return (
@@ -256,9 +247,9 @@ function StatsRow({
           </>
         }
       />
-      <StatCard label="Foglalt" value={String(booked)} sub="75% kihasználtság" />
-      <StatCard label="Összes felület" value={String(total)} sub="6ékony Reklám Kft." />
-      <StatCard label="Bevétel (hó)" value="0 Ft" sub="Indulás előtt 🚀" />
+      <StatCard label="Foglalt" value={String(booked)} sub="aktív kampány" />
+      <StatCard label="Összes felület" value={String(total)} sub="6 városban" />
+      <StatCard label="Átl. kihasználtság" value={total > 0 ? `${Math.round((booked / total) * 100)}%` : "—"} sub="aktuálisan" />
     </div>
   );
 }

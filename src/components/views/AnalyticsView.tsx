@@ -304,6 +304,7 @@ function DistributionChart({ bookings }: { bookings: EnrichedBooking[] }) {
 export function AnalyticsView({ user, onOpenAuth, onRequestBooking }: AnalyticsViewProps) {
   const [bookings, setBookings] = useState<EnrichedBooking[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -317,6 +318,13 @@ export function AnalyticsView({ user, onOpenAuth, onRequestBooking }: AnalyticsV
         supabase.from("billboards").select("id, name, city"),
       ]);
       if (cancelled) return;
+      if (bookingsRes.error) {
+        console.error("[AnalyticsView] bookings:", bookingsRes.error.message);
+        setFetchError("Az analitikai adatok betöltése sikertelen. Kérjük, töltsd újra az oldalt.");
+        setIsLoading(false);
+        return;
+      }
+      setFetchError(null);
       const raw = (bookingsRes.data ?? []) as DbBooking[];
       const bbs = (billboardsRes.data ?? []) as Pick<DbBillboard, "id" | "name" | "city">[];
       const bbMap = new Map(bbs.map((b) => [b.id, b]));
@@ -387,6 +395,11 @@ export function AnalyticsView({ user, onOpenAuth, onRequestBooking }: AnalyticsV
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto bg-[#000000] px-4 py-4 pb-8 sm:px-5">
+      {fetchError && (
+        <div className="rounded-xl border border-[#ff6b6b]/25 bg-[#ff6b6b]/5 px-4 py-3 text-sm text-[#ff6b6b]">
+          {fetchError}
+        </div>
+      )}
       {/* Fejléc */}
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-white/[0.06] pb-3">
         <div>

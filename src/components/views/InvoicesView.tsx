@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import { AlertCircle, CalendarPlus, Download, FileText, LogIn, Receipt } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { supabase, type DbBooking, type DbBillboard } from "@/lib/supabaseClient";
-import { useToast } from "@/context/ToastContext";
+import { toast } from "sonner";
 
 // ─── Típusok ─────────────────────────────────────────────────────────────────
 
-type InvoiceStatus = "Kifizetett" | "Nyitott" | "Lejárt";
+type InvoiceStatus = "Kifizetett" | "Nyitott" | "Lejárt" | "Lemondva";
 
 type InvoiceRow = {
   id: string;
@@ -29,8 +29,8 @@ export type InvoicesViewProps = {
 // ─── Segédfüggvények ─────────────────────────────────────────────────────────
 
 function deriveStatus(b: DbBooking): InvoiceStatus {
-  if (b.status === "confirmed") return "Kifizetett";
-  if (b.status === "cancelled") return "Lejárt";
+  if (b.status === "confirmed" || b.status === "approved") return "Kifizetett";
+  if (b.status === "cancelled" || b.status === "rejected") return "Lemondva";
   const due = new Date(b.end_date);
   due.setDate(due.getDate() + 15);
   return due < new Date() ? "Lejárt" : "Nyitott";
@@ -53,6 +53,12 @@ function StatusPill({ status }: { status: InvoiceStatus }) {
     return (
       <span className="inline-flex rounded-full border border-[#fbbf24]/45 bg-[#fbbf24]/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[#fbbf24]">
         Nyitott
+      </span>
+    );
+  if (status === "Lemondva")
+    return (
+      <span className="inline-flex rounded-full border border-[#ff6b6b]/30 bg-[#ff6b6b]/8 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[#ff6b6b]">
+        Lemondva
       </span>
     );
   return (
@@ -135,7 +141,6 @@ export function InvoicesView({ user, onOpenAuth, onRequestBooking }: InvoicesVie
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
-  const { toast } = useToast();
 
   useEffect(() => {
     if (!user) return;
@@ -257,7 +262,7 @@ export function InvoicesView({ user, onOpenAuth, onRequestBooking }: InvoicesVie
               Számlák
             </h1>
             <p className="mt-1 text-[11px] text-[#888888]">
-              Foglalásaidhoz tartozó kifizetések · PDF letöltés
+              Foglalásaidhoz tartozó kifizetések
             </p>
           </div>
         </div>
@@ -342,13 +347,13 @@ export function InvoicesView({ user, onOpenAuth, onRequestBooking }: InvoicesVie
                           <button
                             type="button"
                             onClick={() =>
-                              toast(`📄 PDF generálás hamarosan elérhető (${inv.number})`, "info")
+                              toast.info("A számlák PDF letöltése hamarosan elérhető lesz.")
                             }
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.12] px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-[#888888] transition hover:border-[#d4ff00]/35 hover:text-[#d4ff00]"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.12] px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-[#555] transition hover:border-[#d4ff00]/20 hover:text-[#888]"
                             aria-label={`Számla ${inv.number} letöltése`}
                           >
                             <Download className="h-3.5 w-3.5" strokeWidth={2} />
-                            PDF
+                            Hamarosan
                           </button>
                         </td>
                       </tr>

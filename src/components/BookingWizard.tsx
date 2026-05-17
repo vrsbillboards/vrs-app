@@ -660,6 +660,13 @@ export function BookingWizard({
               type="button"
               onClick={() => go(1)}
               disabled={!canContinue || isSubmitting || (step === 3 && !acceptedTerms)}
+              title={
+                step === 3 && !acceptedTerms
+                  ? "Fogadd el az ÁSZF-et a fizetéshez"
+                  : !canContinue
+                    ? "Töltsd ki a kötelező mezőket"
+                    : undefined
+              }
               className="inline-flex min-h-[44px] min-w-[11rem] items-center justify-center gap-2 rounded-xl bg-[#d4ff00] px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35"
             >
               {isSubmitting ? (

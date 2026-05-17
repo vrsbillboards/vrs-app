@@ -138,9 +138,68 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // ── 3.5. Server-side price verification ─────────────────────────────────
+  // Never trust client-sent total_price. Look up the billboard, calculate
+  // weeks server-side from the requested dates, and compare.
+  const supabaseUrl3 = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnon3 = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl3 || !supabaseAnon3) {
+    return Response.json(
+      { error: "Adatbázis konfiguráció hiányzik a szerveren." },
+      { status: 500 }
+    );
+  }
+  const dbAnon = createClient(supabaseUrl3, supabaseAnon3, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: bb, error: bbErr } = await (dbAnon as any)
+    .from("billboards")
+    .select("price, status")
+    .eq("id", billboard_id.trim())
+    .maybeSingle();
+  if (bbErr || !bb) {
+    console.error("[/api/checkout] Billboard lookup error:", bbErr?.message);
+    return Response.json(
+      { error: "A választott felület nem található vagy nem érhető el." },
+      { status: 404 }
+    );
+  }
+  if (bb.status === "booked") {
+    return Response.json(
+      { error: "Ez a felület időközben lefoglalt lett. Válassz másikat!" },
+      { status: 409 }
+    );
+  }
+  const startMs = new Date(start_date).getTime();
+  const endMs = new Date(end_date).getTime();
+  if (
+    Number.isNaN(startMs) ||
+    Number.isNaN(endMs) ||
+    endMs < startMs
+  ) {
+    return Response.json(
+      { error: "Érvénytelen kezdő vagy záró dátum." },
+      { status: 400 }
+    );
+  }
+  const days = Math.ceil((endMs - startMs) / (1000 * 60 * 60 * 24));
+  const weeks = Math.max(1, Math.ceil(days / 7));
+  const expectedPrice = Number(bb.price) * weeks;
+
+  // Allow ±1 Ft rounding tolerance, but reject anything materially different.
+  if (Math.abs(Math.round(total_price) - expectedPrice) > 1) {
+    return Response.json(
+      {
+        error: `Az ár nem egyezik a felület alapárával. Kérjük, kezdd újra a foglalást. (Várt: ${expectedPrice.toLocaleString("hu-HU")} Ft)`,
+      },
+      { status: 400 }
+    );
+  }
+
   // Stripe minimum HUF (currently 175 Ft)
   const MIN_HUF = 175;
-  const hufMajor = Math.round(total_price);
+  const hufMajor = expectedPrice;
   if (hufMajor < MIN_HUF) {
     return Response.json(
       {

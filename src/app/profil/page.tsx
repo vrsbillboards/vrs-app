@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { ScrollUnlock } from "@/components/ScrollUnlock";
+import { LogoutButton } from "@/components/LogoutButton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -265,6 +266,7 @@ export default async function ProfilPage() {
           >
             Foglalás
           </Link>
+          <LogoutButton variant="compact" />
           <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#1a1a1a] bg-[#0d0d0d] font-[family-name:var(--font-barlow-condensed)] text-[11px] font-black text-[#d4ff00]">
             {firstName.charAt(0).toUpperCase()}
           </div>

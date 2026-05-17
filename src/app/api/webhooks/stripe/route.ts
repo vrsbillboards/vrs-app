@@ -68,6 +68,20 @@ export async function POST(req: Request) {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
+  // ── Idempotency: skip if we already created a booking for this Stripe session ──
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existing } = await (db as any)
+    .from("bookings")
+    .select("id")
+    .eq("stripe_session_id", session.id)
+    .maybeSingle();
+  if (existing) {
+    console.log(
+      `[stripe-webhook] Idempotent skip — booking already exists for session ${session.id}`
+    );
+    return new Response("Already processed", { status: 200 });
+  }
+
   const insertRow: Record<string, unknown> = {
     user_id,
     billboard_id,
@@ -75,6 +89,7 @@ export async function POST(req: Request) {
     end_date,
     total_price,
     status: "pending",
+    stripe_session_id: session.id,
   };
   if (creative_url) insertRow.creative_url = creative_url;
   if (campaign_name) insertRow.campaign_name = campaign_name;
@@ -83,11 +98,28 @@ export async function POST(req: Request) {
   const { error: dbError } = await (db as any).from("bookings").insert(insertRow);
 
   if (dbError) {
-    console.error("[stripe-webhook] DB insert hiba:", dbError.message, {
-      sessionId: session.id,
-    });
-    // Return 500 → Stripe retries (idempotency handled by Stripe's retry logic)
-    return new Response("Database error", { status: 500 });
+    // If `stripe_session_id` column doesn't exist yet, gracefully fall back to insert without it.
+    if (/column .*stripe_session_id.* does not exist/i.test(dbError.message)) {
+      console.warn(
+        "[stripe-webhook] stripe_session_id column missing — retrying insert without it. " +
+          "Run: ALTER TABLE bookings ADD COLUMN stripe_session_id text UNIQUE;"
+      );
+      delete insertRow.stripe_session_id;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const retry = await (db as any).from("bookings").insert(insertRow);
+      if (retry.error) {
+        console.error("[stripe-webhook] DB insert (fallback) hiba:", retry.error.message, {
+          sessionId: session.id,
+        });
+        return new Response("Database error", { status: 500 });
+      }
+    } else {
+      console.error("[stripe-webhook] DB insert hiba:", dbError.message, {
+        sessionId: session.id,
+      });
+      // Return 500 → Stripe retries (idempotency handled by Stripe's retry logic)
+      return new Response("Database error", { status: 500 });
+    }
   }
 
   console.log(

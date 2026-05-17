@@ -4,7 +4,7 @@ import { useState, useEffect, type FormEvent } from "react";
 import { Eye, EyeOff, Lock, LogIn, Mail, UserPlus, X } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
-type AuthMode = "login" | "register";
+type AuthMode = "login" | "register" | "reset";
 
 type AuthModalProps = {
   open: boolean;
@@ -37,8 +37,6 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
     // Sikeres esetben a Supabase átirányít, ezért nem kell onClose()
   };
 
-  if (!open) return null;
-
   const switchMode = (m: AuthMode) => {
     setMode(m);
     setError(null);
@@ -59,6 +57,20 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
         });
         if (authErr) throw authErr;
         onClose();
+      } else if (mode === "reset") {
+        const { error: authErr } = await supabase.auth.resetPasswordForEmail(
+          email,
+          {
+            redirectTo:
+              typeof window !== "undefined"
+                ? `${window.location.origin}/`
+                : undefined,
+          }
+        );
+        if (authErr) throw authErr;
+        setInfo(
+          "Ha a megadott e-mail-cím létezik nálunk, küldtünk egy linket a jelszó visszaállításához. Ellenőrizd a postafiókodat (és a Spam mappát)."
+        );
       } else {
         const { data, error: authErr } = await supabase.auth.signUp({
           email,
@@ -90,6 +102,8 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  if (!open) return null;
+
   return (
     <div
       className="fixed inset-0 z-[10100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-md"
@@ -114,7 +128,11 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
               id="auth-title"
               className="mt-0.5 font-[family-name:var(--font-barlow-condensed)] text-2xl font-black tracking-wide text-white"
             >
-              {mode === "login" ? "Bejelentkezés" : "Regisztráció"}
+              {mode === "login"
+                ? "Bejelentkezés"
+                : mode === "reset"
+                  ? "Jelszó visszaállítása"
+                  : "Regisztráció"}
             </h2>
           </div>
           <button
@@ -145,7 +163,8 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
           ))}
         </div>
 
-        {/* OAuth gombok */}
+        {/* OAuth gombok — login/register módban */}
+        {mode !== "reset" && (
         <div className="space-y-3 px-6 pt-6">
           <button
             type="button"
@@ -182,9 +201,10 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
             <div className="h-px flex-1 bg-[#1a1a1a]" />
           </div>
         </div>
+        )}
 
         {/* E-mail / jelszó form */}
-        <form onSubmit={handleSubmit} className="space-y-4 px-6 pb-6">
+        <form onSubmit={handleSubmit} className={`space-y-4 px-6 pb-6 ${mode === "reset" ? "pt-6" : ""}`}>
           {/* E-mail */}
           <div>
             <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-[#888888]">
@@ -204,37 +224,57 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
             </div>
           </div>
 
-          {/* Jelszó */}
-          <div>
-            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-[#888888]">
-              Jelszó
-            </label>
-            <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#444444]" strokeWidth={2} />
-              <input
-                type={showPw ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={mode === "register" ? "Min. 6 karakter" : "••••••••"}
-                required
-                minLength={6}
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                className={`${inputBase} pl-9 pr-10`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPw((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#444444] transition hover:text-[#888888]"
-                aria-label={showPw ? "Jelszó elrejtése" : "Jelszó megjelenítése"}
-              >
-                {showPw ? (
-                  <EyeOff className="h-4 w-4" strokeWidth={2} />
-                ) : (
-                  <Eye className="h-4 w-4" strokeWidth={2} />
+          {/* Jelszó — csak login/register módban */}
+          {mode !== "reset" && (
+            <div>
+              <div className="mb-1.5 flex items-center justify-between">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-[#888888]">
+                  Jelszó
+                </label>
+                {mode === "login" && (
+                  <button
+                    type="button"
+                    onClick={() => switchMode("reset")}
+                    className="text-[10px] font-semibold text-[#7aaa44] underline-offset-2 hover:text-[#d4ff00] hover:underline"
+                  >
+                    Elfelejtetted?
+                  </button>
                 )}
-              </button>
+              </div>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#444444]" strokeWidth={2} />
+                <input
+                  type={showPw ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={mode === "register" ? "Min. 6 karakter" : "••••••••"}
+                  required
+                  minLength={6}
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  className={`${inputBase} pl-9 pr-10`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#444444] transition hover:text-[#888888]"
+                  aria-label={showPw ? "Jelszó elrejtése" : "Jelszó megjelenítése"}
+                >
+                  {showPw ? (
+                    <EyeOff className="h-4 w-4" strokeWidth={2} />
+                  ) : (
+                    <Eye className="h-4 w-4" strokeWidth={2} />
+                  )}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+
+          {mode === "reset" && (
+            <p className="text-xs leading-relaxed text-[#666]">
+              Add meg a regisztrált e-mail-címedet — küldünk egy biztonságos linket,
+              amelyen új jelszót állíthatsz be.
+            </p>
+          )}
 
           {/* Hibaüzenet */}
           {error && (
@@ -268,6 +308,11 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
                 <LogIn className="h-4 w-4" strokeWidth={2.5} />
                 Bejelentkezés
               </>
+            ) : mode === "reset" ? (
+              <>
+                <Mail className="h-4 w-4" strokeWidth={2.5} />
+                Visszaállító link küldése
+              </>
             ) : (
               <>
                 <UserPlus className="h-4 w-4" strokeWidth={2.5} />
@@ -287,6 +332,17 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
                   className="font-semibold text-[#7aaa44] underline-offset-2 hover:text-[#d4ff00] hover:underline"
                 >
                   Regisztrálj ingyen
+                </button>
+              </>
+            ) : mode === "reset" ? (
+              <>
+                Eszembe jutott!{" "}
+                <button
+                  type="button"
+                  onClick={() => switchMode("login")}
+                  className="font-semibold text-[#7aaa44] underline-offset-2 hover:text-[#d4ff00] hover:underline"
+                >
+                  Bejelentkezés
                 </button>
               </>
             ) : (

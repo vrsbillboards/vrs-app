@@ -89,7 +89,6 @@ export function BookingWizard({
   }, [open, billboardFetchTick]);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
-  const [timeTarget, setTimeTarget] = useState("full");
   const [campaignName, setCampaignName] = useState("");
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -468,8 +467,8 @@ export function BookingWizard({
 
               {step === 1 && (
                 <WizardPanel
-                  title="Időzítés"
-                  subtitle="Kattints a naptárban a kezdő majd a záró napra."
+                  title="Időszak választása"
+                  subtitle="Kattints a naptárban a kezdő napra, majd a záró napra."
                 >
                   <div className="mb-4">
                     <InlineDateRangePicker
@@ -477,20 +476,6 @@ export function BookingWizard({
                       end={end}
                       onChange={(s, e) => { setStart(s); setEnd(e); }}
                     />
-                  </div>
-                  <div className="mb-4">
-                    <Field label="Időzítés / napszak célzás">
-                      <select
-                        value={timeTarget}
-                        onChange={(e) => setTimeTarget(e.target.value)}
-                        className={inputBase}
-                      >
-                        <option value="full">Egész nap (0–24 óra)</option>
-                        <option value="morning">Reggeli csúcs (7–9)</option>
-                        <option value="mid">Déli (11–14)</option>
-                        <option value="evening">Esti csúcs (17–20)</option>
-                      </select>
-                    </Field>
                   </div>
                   <div className="mb-4">
                     <Field label="Kampány neve">
@@ -584,7 +569,7 @@ export function BookingWizard({
               {step === 3 && selected ? (
                 <WizardPanel
                   title="Fizetés"
-                  subtitle="A tényleges fizetés a Stripe biztonságos fizetőoldalán történik. Az alábbi kártyamezők csak tájékoztató minta — a „Fizetés és foglalás” gomb feltölti a kreatívot, elmenti a foglalást, majd átirányít."
+                  subtitle="Ellenőrizd a foglalás adatait, fogadd el az ÁSZF-et, majd a „Fizetés és foglalás” gomb átirányít a Stripe biztonságos fizetőoldalára."
                 >
                   <div className="mb-5 space-y-2 rounded-2xl border border-[#1a1a1a] bg-[#000000] p-4 text-sm">
                     <Row k="Felület" v={`${selected.id} — ${selected.name}`} />
@@ -592,7 +577,6 @@ export function BookingWizard({
                     <Row k="Típus" v={selected.type} />
                     <Row k="Időszak" v={reviewDates} />
                     <Row k="Kampány" v={campaignName || "—"} />
-                    <Row k="Napszak célzás" v={timeLabel(timeTarget)} />
                     <div className="flex items-center justify-between border-t border-[#1a1a1a] pt-3">
                       <span className="text-[#888888]">Fizetendő (becsült)</span>
                       <span className="font-[family-name:var(--font-barlow-condensed)] text-xl font-black text-[#d4ff00]">
@@ -609,7 +593,7 @@ export function BookingWizard({
                       <div>
                         <p className="text-sm font-semibold text-white">Biztonságos Stripe fizetés</p>
                         <p className="mt-1 text-xs leading-relaxed text-[#666]">
-                          A „Fizetés és foglalás" gombra kattintva átirányítunk a Stripe
+                          A „Fizetés és foglalás” gombra kattintva átirányítunk a Stripe
                           titkosított fizetőoldalára, ahol megadhatod bankkártya adataidat.
                         </p>
                       </div>
@@ -644,9 +628,9 @@ export function BookingWizard({
                     </span>
                     <span className="text-[12px] leading-relaxed text-[#888888]">
                       Kijelentem, hogy elolvastam és elfogadom az{" "}
-                      <a href="#" className="text-[#d4ff00] underline underline-offset-2 hover:brightness-125">ÁSZF</a>
+                      <a href="/aszf" target="_blank" rel="noreferrer" className="text-[#d4ff00] underline underline-offset-2 hover:brightness-125">ÁSZF</a>
                       -et és az{" "}
-                      <a href="#" className="text-[#d4ff00] underline underline-offset-2 hover:brightness-125">Adatvédelmi Tájékoztatót</a>
+                      <a href="/adatvedelem" target="_blank" rel="noreferrer" className="text-[#d4ff00] underline underline-offset-2 hover:brightness-125">Adatvédelmi Tájékoztatót</a>
                       , és vállalom a felelősséget a feltöltött kreatív tartalmáért.
                     </span>
                   </label>
@@ -694,16 +678,6 @@ export function BookingWizard({
       </div>
     </div>
   );
-}
-
-function timeLabel(v: string): string {
-  const m: Record<string, string> = {
-    full: "Egész nap",
-    morning: "Reggeli csúcs",
-    mid: "Déli",
-    evening: "Esti csúcs",
-  };
-  return m[v] ?? v;
 }
 
 function WizardPanel({

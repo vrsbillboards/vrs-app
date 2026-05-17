@@ -370,7 +370,7 @@ export default function LandingPage() {
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-[#d4ff00]" />
               </div>
               <span className="text-[11px] font-black uppercase tracking-[0.22em] text-[#d4ff00]">
-                Magyarország #1 DOOH platform
+                Új generációs DOOH platform
               </span>
               <Zap className="h-3.5 w-3.5 fill-[#d4ff00] text-[#d4ff00]" />
             </div>
@@ -471,8 +471,8 @@ export default function LandingPage() {
           </div>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <StatCard value={80}  suffix="+"      label="Reklámfelület"         delay="sr-d1" accent="#d4ff00" />
-            <StatCard value={12}  suffix="+"      label="Aktív város"            delay="sr-d2" accent="#00ff87" />
-            <StatCard value={96}  suffix="%"      label="Elégedett ügyfél"       delay="sr-d3" accent="#7fff57" />
+            <StatCard value={6}   suffix=""       label="Aktív város"            delay="sr-d2" accent="#00ff87" />
+            <StatCard value={24}  suffix="/7"     label="Online elérhetőség"     delay="sr-d3" accent="#7fff57" />
             <StatCard value={3}   suffix=" perc"  label="Átlagos foglalási idő"  delay="sr-d4" accent="#b8ff00" />
           </div>
         </div>
@@ -838,11 +838,12 @@ export default function LandingPage() {
               <a href="#faq"      className="text-[#333] transition hover:text-white">FAQ</a>
               <button type="button" onClick={() => setAuthOpen(true)} className="text-left text-[#333] transition hover:text-[#d4ff00]">Belépés</button>
               <a href="mailto:info@vrsbillboards.hu" className="text-[#333] transition hover:text-white">Kapcsolat</a>
-              <a href="#" className="text-[#333] transition hover:text-white">Adatvédelem</a>
+              <Link href="/aszf" className="text-[#333] transition hover:text-white">ÁSZF</Link>
+              <Link href="/adatvedelem" className="text-[#333] transition hover:text-white">Adatvédelem</Link>
             </div>
           </div>
           <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-[#080808] pt-8 sm:flex-row">
-            <p className="text-xs text-[#252525]">© 2026 VRS Billboards Kft. Minden jog fenntartva.</p>
+            <p className="text-xs text-[#252525]">© 2026 6ékony Reklám Kft. — VRS Billboards. Minden jog fenntartva.</p>
             <p className="text-[11px] text-[#1a1a1a]">Next.js · Supabase · Stripe</p>
           </div>
         </div>

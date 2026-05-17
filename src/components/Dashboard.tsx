@@ -11,15 +11,15 @@ import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { Sidebar } from "@/components/Sidebar";
 import { Topbar } from "@/components/Topbar";
 import { DashboardViewProvider, useDashboardView } from "@/context/DashboardViewContext";
-import { ToastProvider, useToast } from "@/context/ToastContext";
+import { ToastProvider } from "@/context/ToastContext";
 import { CreativeProvider } from "@/context/CreativeContext";
+import { toast as sonnerToast } from "sonner";
 import { billboards, type SurfaceFilter } from "@/lib/billboards";
 import { requestMapInvalidate } from "@/lib/map-events";
 import { supabase } from "@/lib/supabaseClient";
 import { VIEW_TITLES, type DashboardViewId } from "@/types/dashboard";
 
 function DashboardShell() {
-  const { toast } = useToast();
   const { view, navigate } = useDashboardView();
   const [slim, setSlim] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -33,6 +33,7 @@ function DashboardShell() {
   const [user, setUser] = useState<User | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [pendingWhenLoggedIn, setPendingWhenLoggedIn] = useState(0);
+  const [dbStats, setDbStats] = useState<{ free: number; booked: number; total: number; cities: string[] } | null>(null);
 
   // Hitelesítési állapot szinkronizálása
   useEffect(() => {
@@ -46,16 +47,39 @@ function DashboardShell() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Függőben lévő foglalások száma a sidebar badge-hez (kijelentkezéskor deriváltan 0, sync setState nélkül)
+  // Függőben lévő foglalások száma a sidebar badge-hez
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("status", "pending")
-      .then(({ count }) => setPendingWhenLoggedIn(count ?? 0));
+    let cancelled = false;
+    void (async () => {
+      const { count } = await supabase
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("status", "pending");
+      if (!cancelled) setPendingWhenLoggedIn(count ?? 0);
+    })();
+    return () => { cancelled = true; };
   }, [user]);
+
+  // Felület-statisztikák Supabase-ből (egységes forrás a wizarddal)
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data, error } = await supabase
+        .from("billboards")
+        .select("city, status");
+      if (cancelled) return;
+      if (error || !data) { setDbStats(null); return; }
+      const rows = data as { city: string | null; status: string | null }[];
+      const free = rows.filter((r) => r.status === "free").length;
+      const booked = rows.filter((r) => r.status === "booked").length;
+      const total = rows.length;
+      const cities = [...new Set(rows.map((r) => r.city).filter(Boolean) as string[])].sort();
+      setDbStats({ free, booked, total, cities });
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const pendingCount = user ? pendingWhenLoggedIn : 0;
 
@@ -64,19 +88,20 @@ function DashboardShell() {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") !== "cancelled") return;
-    toast(
-      "A fizetést megszakítottad. A foglalásod „Függőben” marad — a Foglalásaim menüben ellenőrizheted, vagy indíts új foglalást.",
-      "info"
+    sonnerToast.info(
+      "A fizetést megszakítottad. A foglalásod nem készült el — bármikor újraindíthatod.",
+      { duration: 6000 }
     );
     params.delete("checkout");
     const q = params.toString();
     const path = window.location.pathname;
     window.history.replaceState(null, "", q ? `${path}?${q}` : path);
-  }, [toast]);
+  }, []);
 
-  const available = billboards.filter((b) => b.status === "free").length;
-  const booked = billboards.filter((b) => b.status === "booked").length;
-  const total = billboards.length;
+  const available = dbStats?.free ?? billboards.filter((b) => b.status === "free").length;
+  const booked = dbStats?.booked ?? billboards.filter((b) => b.status === "booked").length;
+  const total = dbStats?.total ?? billboards.length;
+  const cityCount = dbStats?.cities.length ?? 6;
 
   const showMapChrome = view === "map" || view === "browse";
 
@@ -130,12 +155,13 @@ function DashboardShell() {
           <LiveTicker />
           {showMapChrome && (
             <>
-              <StatsRow available={available} booked={booked} total={total} />
+              <StatsRow available={available} booked={booked} total={total} cityCount={cityCount} />
               <FilterBar
                 typeFilter={typeFilter}
                 onTypeFilter={setTypeFilter}
                 cityFilter={cityFilter}
                 onCityFilter={setCityFilter}
+                cities={dbStats?.cities ?? ["Győr", "Mosonmagyaróvár", "Kecskemét", "Székesfehérvár", "Szolnok", "Velence"]}
                 view={view}
                 onViewMap={() => navigate("map")}
                 onViewBrowse={() => navigate("browse")}
@@ -230,10 +256,12 @@ function StatsRow({
   available,
   booked,
   total,
+  cityCount,
 }: {
   available: number;
   booked: number;
   total: number;
+  cityCount: number;
 }) {
   return (
     <div className="grid shrink-0 grid-cols-4 gap-2.5 px-5 py-3.5 max-md:grid-cols-2">
@@ -243,12 +271,12 @@ function StatsRow({
         value={String(available)}
         sub={
           <>
-            <span className="text-[#d4ff00]">6</span> városban
+            <span className="text-[#d4ff00]">{cityCount}</span> városban
           </>
         }
       />
       <StatCard label="Foglalt" value={String(booked)} sub="aktív kampány" />
-      <StatCard label="Összes felület" value={String(total)} sub="6 városban" />
+      <StatCard label="Összes felület" value={String(total)} sub={`${cityCount} városban`} />
       <StatCard label="Átl. kihasználtság" value={total > 0 ? `${Math.round((booked / total) * 100)}%` : "—"} sub="aktuálisan" />
     </div>
   );
@@ -294,6 +322,7 @@ function FilterBar({
   onTypeFilter,
   cityFilter,
   onCityFilter,
+  cities,
   view,
   onViewMap,
   onViewBrowse,
@@ -302,6 +331,7 @@ function FilterBar({
   onTypeFilter: (t: SurfaceFilter) => void;
   cityFilter: string;
   onCityFilter: (c: string) => void;
+  cities: string[];
   view: DashboardViewId;
   onViewMap: () => void;
   onViewBrowse: () => void;
@@ -335,12 +365,9 @@ function FilterBar({
         className="rounded-md border border-[var(--b1)] bg-[var(--bg3)] px-2.5 py-1 text-[11px] text-[var(--text)] outline-none"
       >
         <option value="all">Összes város</option>
-        <option>Győr</option>
-        <option>Mosonmagyaróvár</option>
-        <option>Kecskemét</option>
-        <option>Székesfehérvár</option>
-        <option>Szolnok</option>
-        <option>Velence</option>
+        {cities.map((c) => (
+          <option key={c} value={c}>{c}</option>
+        ))}
       </select>
       <div className="ml-auto flex overflow-hidden rounded-md border border-[var(--b1)] bg-[var(--bg3)]">
         <button
